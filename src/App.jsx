@@ -32,6 +32,7 @@ export default function App() {
         hideGuides={hideGuides} setHideGuides={setHideGuides}
         editMode={editMode} setEditMode={setEditMode}
         onClear={() => canvasApi.current?.clear()}
+        onResetCircles={() => canvasApi.current?.resetCircles()}
       />
 
       {/* theme toggle */}

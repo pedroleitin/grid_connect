@@ -103,7 +103,7 @@ export default function Sidebar({
   tension, setTension, style, setStyle, shape, setShape,
   hideGuides, setHideGuides,
   editMode, setEditMode,
-  onClear,
+  onClear, onResetCircles,
 }) {
   return (
     <div
@@ -141,8 +141,9 @@ export default function Sidebar({
       </div>
 
       {/* action buttons pinned to the bottom */}
-      <div className="p-4 divider border-t border-[#d7d2c7]/25">
-        <button className="btn-menu w-full py-2 text-[13px] font-medium" onClick={onClear}>Clear</button>
+      <div className="p-4 divider border-t border-[#d7d2c7]/25 flex gap-2">
+        <button className="btn-menu flex-1 py-2 text-[13px] font-medium" onClick={onResetCircles}>Reset</button>
+        <button className="btn-menu flex-1 py-2 text-[13px] font-medium" onClick={onClear}>Clear</button>
       </div>
     </div>
   )

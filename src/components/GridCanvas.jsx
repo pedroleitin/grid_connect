@@ -453,6 +453,11 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       ropesRef.current = []; redoRef.current = []; curRef.current = null
       wake(); setCanUndo(false); setCanRedo(false)
     },
+    resetCircles() {
+      sizesRef.current.clear(); ignoredRef.current.clear()
+      hoverAnimRef.current.clear()
+      wake()
+    },
     undo: doUndo,
     redo: doRedo,
     exportSVG() {
