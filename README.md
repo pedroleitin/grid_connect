@@ -1,10 +1,11 @@
-# Grid Generator
+# G_connect
 
 A generative drawing tool over a grid of pins. You drag a loop around the
 circles and a **rubber band** molds tightly to them (arcs glued to each circle +
 straight tangent lines) — inspired by [Rogo](https://github.com/Jakob-Bock/Rogo).
-The whole background is an infinite-style canvas you can **pan and zoom**, and each
-circle can be **resized independently**. Exports as a clean **SVG** and a 2x **PNG**
+The whole window is an infinite-style canvas you can **pan and zoom** (the content
+flows under the sidebar, never cropped), and each circle can be **resized
+independently** or **ignored**. Exports as a clean **SVG** and a 2x **PNG**
 with a transparent background.
 
 Follows the visual style guide of [grid-gen-2](https://github.com/pedroleitin/grid-gen-2)
@@ -65,22 +66,27 @@ assets/                    # reference images
   circle size never moves neighbors nor resizes the canvas. **Spacing** is the gap between
   containers, so increasing it **grows the canvas** and nothing gets clipped (the rope joints are
   remapped to the new pitch). The canvas also grows with columns/rows.
-- **Pan & zoom:** the whole background is the drawing surface. **Pan** with scroll, Space+drag or
-  middle-button drag; **zoom** with Ctrl/Cmd+scroll or trackpad pinch. A floating zoom box
-  (bottom-right) has a pan (hand) toggle, − / + zoom, a clickable **%** label and a fit/reset
-  button. The view auto-fits and re-centers when the grid grows, until you take over. The view
-  transform is render-only: physics and export stay in world coordinates, so zoom never affects the
-  exported SVG/PNG.
+- **Pan & zoom:** the whole window is the drawing surface — the canvas spans the full viewport
+  behind the opaque sidebar, so content pans/zooms **under it** and is never cropped at its edge.
+  **Pan** with scroll, Space+drag or middle-button drag; **zoom** with Ctrl/Cmd+scroll or trackpad
+  pinch. A floating zoom box (bottom-right) has a pan (hand) toggle, − / + zoom, a clickable **%**
+  label and a fit/reset button. Fit/zoom stay centered on the visible area (right of the sidebar);
+  the view auto-fits and re-centers when the grid grows, until you take over. A single dotted
+  background covers the whole page and pans/zooms with the content (seamless across the sidebar
+  edge). The view transform is render-only: physics and export stay in world coordinates, so zoom
+  never affects the exported SVG/PNG.
 - **Per-circle size (Edit sizes):** toggle **Edit sizes**, hover a circle to reveal a drag handle
   on its edge, and drag to set that circle's diameter (it grows inside its own container, so
-  neighbors don't move). The physics and export respect the per-circle sizes.
+  neighbors don't move). The physics and export respect the per-circle sizes. In Edit mode you can
+  also click a circle's center **X** to **ignore** it (turns red, skipped by the rope); **Reset**
+  clears all sizes and ignore flags.
 
 ### Controls (Sidebar)
 
 - **Columns / Rows** — grid size (grows the canvas).
 - **Circle size** — pin diameter; grows within its container without moving neighbors or resizing the canvas.
 - **Spacing** — gap between containers (grows the canvas so nothing is clipped).
-- **Rope tension** — spring stiffness (100 = loose/round wrap, 200 = tight/glued to the circles).
+- **Rope tension** — settle tightness (100 = loose/round wrap, 200 = tight/glued to the circles).
 - **Style** — Filled (blob) or Outline (line).
 - **Pin** — Circle or Square (only affects the guide; the rope always collides with the circular edge).
 - **Hide guides** — draw without the pin dots showing (animated fade).

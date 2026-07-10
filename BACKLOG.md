@@ -18,5 +18,7 @@
 - [x] Light/dark theme toggle (`[data-theme]` palette mapped to `@theme` tokens).
 - [x] Full-canvas drawing with pan/zoom (scroll to pan, Ctrl/Cmd+scroll or pinch to zoom,
   Space/middle-button drag to pan; on-canvas +/−/% controls; auto-fit until manually moved).
+- [x] Full-viewport canvas: content pans/zooms **under the sidebar** without cropping; a single
+  seamless dotted background across the whole page (`leftInset` keeps fit/zoom centered).
 - [x] Zoom box + bar sliders ported from DRAW_GRID (glass zoom pill with pan/fit; `.rng` sliders).
 - [ ] Offline fonts (currently via Google Fonts with system fallback).

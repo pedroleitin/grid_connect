@@ -1,8 +1,9 @@
-# Copilot — Grid Generator
+# Copilot — G_connect
 
 A generative grid drawing tool: the user draws a loop around the circles and an
-**elastic rope** shrink-wraps tightly around them (Rogo style). The whole background is a
-pan/zoom canvas; circles can be resized independently (Edit sizes). Exports SVG/PNG.
+**elastic rope** shrink-wraps tightly around them (Rogo style). The canvas fills the whole
+viewport (content pans/zooms under the sidebar, uncropped); circles can be resized independently
+or ignored (Edit sizes). Exports SVG/PNG.
 
 ## Stack
 
@@ -27,8 +28,12 @@ pan/zoom canvas; circles can be resized independently (Edit sizes). Exports SVG/
 - **Input via Pointer Events** (`pointerdown/move/up`, `setPointerCapture`, coords via
   `getBoundingClientRect`). Do NOT use `p.mouseX/mouseY` (produces spurious points in real drags).
 - **Pan/zoom** is a render-only view transform in `viewRef` (`{scale, tx, ty}`); physics and export
-  stay in world coords so zoom never affects the SVG/PNG. `fit()` fits+centers (auto until touched,
-  and when the grid grows); dotted background pans/zooms via CSS; zoom box overlay + pan (hand) tool.
+  stay in world coords so zoom never affects the SVG/PNG. The canvas spans the **full viewport**
+  behind the opaque sidebar; a `leftInset` prop keeps `fit()`/zoom centered on the visible area so
+  content pans/zooms **under the sidebar** uncropped. `fit()` fits+centers (auto until touched,
+  and when the grid grows); a single **fixed full-page dotted layer** (`bgRef`, `.canvas-bg`)
+  behind everything, offset by the holder's page position (`applyBg`), so dots are seamless and
+  pan/zoom uniformly; zoom box overlay + pan (hand) tool.
 - **Per-circle sizes** in `sizesRef` (`Map "r,c" -> diameter`) mirrored into `cfgRef.current.sizes`;
   `geometry.sizeOf(cfg,r,c)` returns the override or global `cellSize`. **Edit mode** (`editModeRef`)
   disables drawing: hover a pin (`pinAt` → `hoverPinRef`) to show a handle, drag (`dragPinRef`,

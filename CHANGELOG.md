@@ -5,6 +5,12 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Added
+- **Full-viewport canvas**: the drawing surface now spans the whole window (behind the opaque
+  sidebar), with a left inset that keeps the fit/zoom centered on the visible area. Content pans
+  and zooms **under the sidebar** seamlessly instead of being hard-cropped at its edge.
+- **Seamless page dots**: a single fixed dotted background covers the whole page and pans/zooms
+  with the content, so the pattern is continuous across the sidebar/canvas edge (previously two
+  misaligned layers left a visible seam).
 - **Ignore circles** (Edit mode): each pin shows a center **X** on hover; click it to mark
   the circle ignored — it turns reddish and is skipped by the rope physics, so drawings pass
   through it. Click again to re-enable it.
@@ -43,6 +49,9 @@ All notable changes to this project. Newest first.
   *(loop, spacing, size, tension)* — reverting values reproduces the identical shape.
 
 ### Changed
+- **Renamed** to **G_connect** (sidebar title and page title); dropped the "freehand" tag.
+- **Zoom + undo/redo buttons** now fill **yellow** (`#ffc800`) on hover, matching the accent used
+  by the toggles and segmented controls.
 - **Export buttons** moved out of the sidebar into a floating bar centered at the bottom of the
   canvas, shown as **download-icon** buttons (SVG / PNG), no background on the bar.
 - **Sidebar polish**: bar sliders now animate — a subtle resting state (dimmed track/fill, dark
@@ -55,8 +64,8 @@ All notable changes to this project. Newest first.
 - Canvas model: each pin owns a **fixed-size container** (`CELL`). Circle size grows inside its
   container without moving neighbors or resizing the canvas; **spacing** and columns/rows grow
   the canvas so nothing gets clipped.
-- Slider ranges: circle size **35–200**, rope tension **100–200**; tension now maps to spring
-  stiffness.
+- Slider ranges: circle size **35–200** (up to **300** in Edit mode), rope tension **100–200**;
+  higher tension settles tighter.
 - Rope no longer drifts or loses pins when changing spacing/size (fixed elasticity error by
   re-seeding from the original loop instead of continuing from the settled state).
 - Full project translated to **English** (UI, comments, README, docs, `index.html` lang).

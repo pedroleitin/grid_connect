@@ -1,4 +1,4 @@
-# CLAUDE.md — Grid Generator
+# CLAUDE.md — G_connect
 
 Project instructions for Claude Code. The user's global preferences still apply.
 
@@ -33,8 +33,13 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
     in real drags → "fan of lines").
   - **Pan/zoom** is a render-only view transform in `viewRef` (`{scale, tx, ty}`; screen = world *
     scale + t). Physics and export stay in **world coords**, so zoom never affects the SVG/PNG.
-    `fit()` fits+centers (auto until `touchedRef` is set, and on grow); the dotted background pans
-    and zooms via CSS. Zoom box overlay + pan (hand) tool (`panToolRef`/`panTool`).
+    The canvas spans the **full viewport** (behind the opaque sidebar); a `leftInset` prop (the
+    sidebar width) keeps `fit()`/zoom centered on the visible area, so content pans/zooms **under
+    the sidebar** without being cropped. `fit()` fits+centers (auto until `touchedRef` is set, and
+    on grow). A single **fixed full-page dotted layer** (`bgRef`, `.canvas-bg`) sits behind
+    everything and is offset by the holder's page position, so the dots are seamless across the
+    sidebar edge and pan/zoom uniformly (`applyBg`). Zoom box overlay + pan (hand) tool
+    (`panToolRef`/`panTool`); undo/redo bar offset by `leftInset`.
   - **Per-circle sizes** live in `sizesRef` (a `Map` of `"r,c" -> diameter`) mirrored into
     `cfgRef.current.sizes`. **Edit mode** (`editModeRef`) disables drawing: hovering a pin
     (`hoverPinRef` via `pinAt`) shows a drag handle; dragging (`dragPinRef`, `resizePin`) sets that
