@@ -9,8 +9,8 @@
   own container, so neighbors don't move). Physics + export respect the per-circle sizes.
 - [ ] **Squares** mode (square pins/collision, not just the circle guide).
 - [ ] **Erase** tool: remove drawn ropes (or parts of them) directly on the canvas.
-- [ ] **Ignore** circles: mark individual pins to be skipped so the rope passes through
-  them instead of wrapping around.
+- [x] **Ignore** circles: in Edit mode, click the center **X** of a pin to mark it ignored
+  (reddish); ignored pins are skipped by the physics so the rope passes through them.
 - [x] **Hide guides** toggle (draw without the pin dots showing).
 - [ ] **Paint** mode: paint over pins to grow metaball **blobs**.
 - [ ] **Connect** mode (metaball between neighbors) as an optional tool.

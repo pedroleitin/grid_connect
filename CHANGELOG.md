@@ -5,6 +5,12 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Added
+- **Ignore circles** (Edit mode): each pin shows a center **X** on hover; click it to mark
+  the circle ignored — it turns reddish and is skipped by the rope physics, so drawings pass
+  through it. Click again to re-enable it.
+- **Edit mode** now lets a circle grow up to **300px** (beyond its container), the guides
+  render **on top** of the drawings with **animated dotted borders**, and each pin fades from
+  50% to 100% opacity on hover.
 - **Undo / Redo** floating bar (bottom-left of the canvas, same style as the zoom box) with
   icon buttons that disable when there's nothing to undo/redo. Undo moved out of the sidebar
   (which now keeps only **Clear**).

@@ -31,21 +31,24 @@ function readColors() {
     ink: cs.getPropertyValue('--c-ink').trim() || '#111110',
     empty: cs.getPropertyValue('--c-empty').trim() || '#d7d2c7',
     accent: 'rgba(255,200,0,0.9)',
+    danger: '#e0533f',
   }
 }
 
 const MIN_SCALE = 0.2
 const MAX_SCALE = 5
 const clampScale = (s) => Math.max(MIN_SCALE, Math.min(MAX_SCALE, s))
-const MIN_DIAM = 8            // per-circle size limits (CELL is the container max)
-const clampDiam = (d) => Math.max(MIN_DIAM, Math.min(CELL, d))
+const MIN_DIAM = 8            // per-circle size limits
+const MAX_DIAM = 300          // edit mode lets a circle grow beyond its container
+const clampDiam = (d) => Math.max(MIN_DIAM, Math.min(MAX_DIAM, d))
 
 const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, hideGuides, editMode, theme }, ref) {
   const holderRef = useRef(null)   // carries the dotted background (pans/zooms)
   const hostRef = useRef(null)     // p5 canvas mounts here
   const p5Ref = useRef(null)
   const sizesRef = useRef(new Map())  // per-cell diameter overrides: "r,c" -> px
-  const cfgRef = useRef({ cols, rows, cellSize, gap, shape, tension, style, hideGuides, sizes: sizesRef.current })
+  const ignoredRef = useRef(new Set())  // ignored cells ("r,c"): no drawing interaction
+  const cfgRef = useRef({ cols, rows, cellSize, gap, shape, tension, style, hideGuides, sizes: sizesRef.current, ignored: ignoredRef.current })
   const ropesRef = useRef([])       // physics ropes: { loop, joints }
   const redoRef = useRef([])        // undone ropes, for redo
   const curRef = useRef(null)       // raw stroke points (world coords) while drawing
@@ -97,7 +100,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   useEffect(() => {
     editModeRef.current = editMode
     if (!editMode) { hoverPinRef.current = null; dragPinRef.current = null }
-    cfgRef.current = { cols, rows, cellSize, gap, shape, tension, style, hideGuides, sizes: sizesRef.current }
+    cfgRef.current = { cols, rows, cellSize, gap, shape, tension, style, hideGuides, sizes: sizesRef.current, ignored: ignoredRef.current }
     // geometry that changes the canvas size (cols/rows/spacing) re-fits the
     // content centered, so the grid always fits on screen and grows from the
     // middle — even after the user has panned or zoomed.
@@ -222,14 +225,24 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             return
           }
           if (e.button !== 0) return
-          // edit mode: grab the hovered pin to resize it (no drawing)
+          // edit mode: click the center X to (un)ignore, else grab to resize
           if (editModeRef.current) {
-            const hit = hoverPinRef.current || pinAt(worldOf(e))
+            const w = worldOf(e)
+            const hit = hoverPinRef.current || pinAt(w)
             if (hit) {
+              const ct = cellCenter(hit.r, hit.c, cfgRef.current)
+              const xHit = 16 / viewRef.current.scale
+              if (Math.hypot(w.x - ct.x, w.y - ct.y) <= xHit) {
+                const key = hit.r + ',' + hit.c
+                const ig = ignoredRef.current
+                if (ig.has(key)) ig.delete(key); else ig.add(key)
+                wake()
+                return
+              }
               el.setPointerCapture(e.pointerId)
               dragPinRef.current = hit
               hoverPinRef.current = hit
-              resizePin(worldOf(e))
+              resizePin(w)
             }
             return
           }
@@ -358,6 +371,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             for (let c = 0; c < cfg.cols; c++) {
               const ct = cellCenter(r, c, cfg), s = sizeOf(cfg, r, c)
               const key = `${r},${c}`
+              const ignored = edit && ignoredRef.current.has(key)
               // hover ease (edit mode only): drives opacity + border
               let t = 0
               if (edit) {
@@ -365,25 +379,32 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
                 t = prev + ((key === activeKey ? 1 : 0) - prev) * 0.2
                 anim.set(key, t < 0.001 ? 0 : t)
               }
-              // fill — 50% at rest, 100% on hover in edit mode
+              // fill — 50% at rest, 100% on hover in edit mode; reddish when ignored
               const fillA = edit ? a * (0.5 + 0.5 * t) : a
-              const col = p.color(COL.empty); col.setAlpha(255 * fillA)
+              const col = p.color(ignored ? COL.danger : COL.empty); col.setAlpha(255 * fillA)
               p.noStroke(); p.fill(col)
               if (cfg.shape === 'circle') p.circle(ct.x, ct.y, s)
               else p.rect(ct.x - s / 2, ct.y - s / 2, s, s, s * 0.18)
 
               if (!edit) continue
-              // animated dotted border: grows + turns accent when hovered/dragged
-              const base = p.color(COL.ink); base.setAlpha(90 * a)
-              const bcol = p.lerpColor(base, p.color(COL.accent), t)
+              // animated dotted border: grows + turns accent (red when ignored) on hover
+              const restBorder = p.color(ignored ? COL.danger : COL.ink)
+              restBorder.setAlpha((ignored ? 200 : 90) * a)
+              const bcol = p.lerpColor(restBorder, p.color(ignored ? COL.danger : COL.accent), t)
               const rad = s / 2 + (2 + 6 * t) / v.scale
               p.noFill(); p.stroke(bcol); p.strokeWeight((1.5 + 1.5 * t) / v.scale)
               p.drawingContext.setLineDash([4 / v.scale, 4 / v.scale])
               if (cfg.shape === 'circle') p.circle(ct.x, ct.y, rad * 2)
               else p.rect(ct.x - rad, ct.y - rad, rad * 2, rad * 2, rad * 2 * 0.18)
               p.drawingContext.setLineDash([])
-              // resize handle on the right edge, fades in with hover
               if (t > 0.01) {
+                // center X to toggle "ignore"
+                const hl = 9 / v.scale
+                const xcol = p.color(ignored ? COL.danger : COL.ink); xcol.setAlpha(255 * t)
+                p.stroke(xcol); p.strokeWeight(2.4 / v.scale); p.strokeCap(p.ROUND)
+                p.line(ct.x - hl, ct.y - hl, ct.x + hl, ct.y + hl)
+                p.line(ct.x - hl, ct.y + hl, ct.x + hl, ct.y - hl)
+                // resize handle on the right edge
                 const hc = p.color(COL.accent); hc.setAlpha(255 * t)
                 p.noStroke(); p.fill(hc)
                 p.circle(ct.x + rad, ct.y, (12 * t) / v.scale)

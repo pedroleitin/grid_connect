@@ -35,8 +35,10 @@ export function sizeOf(cfg, r, c) {
 
 export function pins(cfg) {
   const list = [];
+  const ig = cfg.ignored;
   for (let r = 0; r < cfg.rows; r++)
     for (let c = 0; c < cfg.cols; c++) {
+      if (ig && ig.has(r + ',' + c)) continue;   // ignored pins don't interact
       const ct = cellCenter(r, c, cfg);
       list.push({ x: ct.x, y: ct.y, r: sizeOf(cfg, r, c) / 2 });
     }
