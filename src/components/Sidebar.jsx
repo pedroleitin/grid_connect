@@ -78,6 +78,10 @@ function Checkbox({ label, checked, onChange }) {
 }
 
 function Segmented({ label, options, value, onChange }) {
+  const toggle = () => {
+    const other = options.find((o) => o.value !== value)
+    if (other) onChange(other.value)
+  }
   return (
     <Row>
       <div className="px-5 py-3 flex items-center justify-between gap-3">
@@ -86,7 +90,7 @@ function Segmented({ label, options, value, onChange }) {
           {options.map((o) => (
             <button
               key={o.value}
-              onClick={() => onChange(o.value)}
+              onClick={toggle}
               className={'seg-opt' + (value === o.value ? ' active' : '')}
             >
               {o.label}
