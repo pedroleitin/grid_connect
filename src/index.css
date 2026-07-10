@@ -80,15 +80,18 @@ body { margin: 0; font-family: var(--font-sans); color: var(--c-text); backgroun
 
 /* toggle switch */
 .toggle-switch {
+  --thumb-color: var(--c-text);
   position: relative; width: 70px; height: 17px; border-radius: 17px;
   background-color: var(--c-line); cursor: pointer; border: none;
   outline: 4px solid var(--c-line);
   transition: background-color 0.2s ease, outline-color 0.2s ease; flex-shrink: 0; padding: 0;
 }
 .toggle-switch:hover { background-color: #ffc800; outline-color: #ffc800; }
+/* dark mode: keep the yellow but flip the thumb dark for reading contrast */
+[data-theme="dark"] .toggle-switch:hover { --thumb-color: var(--c-panel); }
 .toggle-thumb {
   position: absolute; top: 0; width: 39px; height: 17px; border-radius: 17px;
-  transition: left 0.15s; box-sizing: border-box;
+  transition: left 0.15s, background-color 0.2s ease, border-color 0.2s ease; box-sizing: border-box;
 }
 
 /* segmented control (rocker): light pill with a dark rounded selected segment */
@@ -106,6 +109,9 @@ body { margin: 0; font-family: var(--font-sans); color: var(--c-text); backgroun
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 .seg-opt.active { background: var(--c-text); color: var(--c-panel); }
+/* dark mode: keep the yellow but flip the segments dark for reading contrast */
+[data-theme="dark"] .seg:hover .seg-opt { color: var(--c-panel); }
+[data-theme="dark"] .seg:hover .seg-opt.active { background: var(--c-panel); color: #ffc800; }
 
 /* menu buttons */
 .btn-menu {

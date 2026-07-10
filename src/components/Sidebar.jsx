@@ -67,8 +67,8 @@ function Checkbox({ label, checked, onChange }) {
             className="toggle-thumb"
             style={{
               left: checked ? '31px' : '0px',
-              backgroundColor: checked ? 'var(--c-text)' : 'transparent',
-              border: checked ? 'none' : '4px solid var(--c-text)',
+              backgroundColor: checked ? 'var(--thumb-color)' : 'transparent',
+              border: checked ? 'none' : '4px solid var(--thumb-color)',
             }}
           />
         </button>
