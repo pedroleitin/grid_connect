@@ -5,6 +5,8 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Added
+- **Animated style switch**: toggling **Style → Filled/Outline** now crossfades the rope's
+  opacity (the old style fades out while the new one fades in) instead of switching instantly.
 - **Animated Corner radius reveal**: the **Corner radius** slider now slides/fades in and out
   (max-height + opacity) when toggling **Pin → Square/Circle**, instead of appearing abruptly.
 - **Adjustable square corner radius**: with **Pin → Square**, a **Corner radius** slider (20–100%)

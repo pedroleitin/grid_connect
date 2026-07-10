@@ -6,12 +6,13 @@ import {
 } from '../lib/geometry'
 
 /* render a rope: closed Catmull-Rom spline through its physics joints */
-function drawRope(g, joints, style, COL) {
+function drawRope(g, joints, style, COL, alpha = 1) {
   const n = joints.length
   if (n === 0) return
-  if (n < 3) { g.fill(COL.ink); g.noStroke(); g.circle(joints[0].x, joints[0].y, 8); return }
-  if (style === 'fill') { g.fill(COL.ink); g.stroke(COL.ink); g.strokeWeight(4); g.strokeJoin(g.ROUND) }
-  else { g.noFill(); g.stroke(COL.ink); g.strokeWeight(5); g.strokeJoin(g.ROUND); g.strokeCap(g.ROUND) }
+  const ink = g.color(COL.ink); ink.setAlpha(255 * alpha)
+  if (n < 3) { g.fill(ink); g.noStroke(); g.circle(joints[0].x, joints[0].y, 8); return }
+  if (style === 'fill') { g.fill(ink); g.stroke(ink); g.strokeWeight(4); g.strokeJoin(g.ROUND) }
+  else { g.noFill(); g.stroke(ink); g.strokeWeight(5); g.strokeJoin(g.ROUND); g.strokeCap(g.ROUND) }
   const { start, segs } = splineSegments(joints, true)
   g.beginShape(); g.vertex(start.x, start.y)
   for (const s of segs) g.bezierVertex(s.c1x, s.c1y, s.c2x, s.c2y, s.x, s.y)
@@ -55,6 +56,8 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const redoRef = useRef([])        // undone ropes, for redo
   const curRef = useRef(null)       // raw stroke points (world coords) while drawing
   const simRef = useRef({ active: false })
+  const styleAnimRef = useRef({ from: style, t: 1 })  // crossfade between styles
+  const styleCurRef = useRef(style)
   const lastGapRef = useRef(gap)
   const lastSizeRef = useRef(cellSize)
   const lastColsRef = useRef(cols)
@@ -103,6 +106,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     editModeRef.current = editMode
     if (!editMode) { hoverPinRef.current = null; dragPinRef.current = null }
     insetRef.current = leftInset
+    if (style !== styleCurRef.current) {
+      styleAnimRef.current = { from: styleCurRef.current, t: 0 }
+      styleCurRef.current = style
+    }
     cfgRef.current = { cols, rows, cellSize, gap, shape, tension, style, cornerRadius, hideGuides, sizes: sizesRef.current, ignored: ignoredRef.current }
     // geometry that changes the canvas size (cols/rows/spacing) re-fits the
     // content centered, so the grid always fits on screen and grows from the
@@ -433,8 +440,17 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         // normal: guides sit under the ropes
         if (!edit) drawGuides()
 
-        // ropes
-        for (const rope of ropesRef.current) drawRope(p, rope.joints, cfg.style, COL)
+        // ropes — crossfade opacity when the style changes (fill <-> outline)
+        const sa = styleAnimRef.current
+        if (sa.t < 1) sa.t = Math.min(1, sa.t + 0.06)
+        for (const rope of ropesRef.current) {
+          if (sa.t < 1) {
+            drawRope(p, rope.joints, sa.from, COL, 1 - sa.t)
+            drawRope(p, rope.joints, cfg.style, COL, sa.t)
+          } else {
+            drawRope(p, rope.joints, cfg.style, COL)
+          }
+        }
 
         // edit mode: guides render on top of the drawings
         if (edit) drawGuides()
