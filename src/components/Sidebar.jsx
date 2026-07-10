@@ -116,8 +116,7 @@ export default function Sidebar({
     >
       <div className="flex-1 overflow-y-auto flex flex-col menu-scroll">
         <p className="px-5 pt-4 pb-3 font-medium text-[26px] leading-none divider border-b border-[#d7d2c7]/25 flex items-baseline justify-between">
-          Grid Gen
-          <span className="text-[12px]" style={{ color: 'var(--c-text)', opacity: 0.35 }}>freehand</span>
+          G_connect
         </p>
 
         <Slider label="Columns" min={1} max={20} value={cols} onChange={setCols} />
