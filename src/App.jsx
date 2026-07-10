@@ -20,7 +20,7 @@ export default function App() {
   }, [darkMode])
 
   return (
-    <div className="canvas-bg" style={{ height: '100dvh', overflow: 'hidden' }}>
+    <div className="bg-base" style={{ height: '100dvh', overflow: 'hidden' }}>
       <Sidebar
         cols={cols} setCols={setCols}
         rows={rows} setRows={setRows}

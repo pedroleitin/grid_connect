@@ -43,7 +43,8 @@ const MAX_DIAM = 300          // edit mode lets a circle grow beyond its contain
 const clampDiam = (d) => Math.max(MIN_DIAM, Math.min(MAX_DIAM, d))
 
 const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, hideGuides, editMode, theme }, ref) {
-  const holderRef = useRef(null)   // carries the dotted background (pans/zooms)
+  const holderRef = useRef(null)   // p5 host container (pans/zooms)
+  const bgRef = useRef(null)       // full-page dotted background (single seamless layer)
   const hostRef = useRef(null)     // p5 canvas mounts here
   const p5Ref = useRef(null)
   const sizesRef = useRef(new Map())  // per-cell diameter overrides: "r,c" -> px
@@ -134,13 +135,16 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       const canvasEl = { current: null }
       const idleCursor = () => (spaceRef.current || panToolRef.current ? 'grab' : 'crosshair')
 
-      // paint the dotted background so it pans/zooms with the content
+      // paint the single full-page dotted background so it pans/zooms with the
+      // content — offset by the holder's page position so the pattern is seamless
+      // across the sidebar edge and the canvas
       const applyBg = () => {
-        const el = holderRef.current; if (!el) return
+        const bg = bgRef.current, el = holderRef.current; if (!bg || !el) return
         const { scale, tx, ty } = viewRef.current
         const s = 25 * scale
-        el.style.backgroundSize = `${s}px ${s}px`
-        el.style.backgroundPosition = `${tx}px ${ty}px`
+        const rect = el.getBoundingClientRect()
+        bg.style.backgroundSize = `${s}px ${s}px`
+        bg.style.backgroundPosition = `${tx + rect.left}px ${ty + rect.top}px`
       }
       const setView = (v) => { viewRef.current = v; applyBg(); setZoomPct(Math.round(v.scale * 100)) }
       const markTouched = () => { touchedRef.current = true }
@@ -476,8 +480,14 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   }), [])
 
   return (
-    <div ref={holderRef} className="canvas-bg" style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
-      <div ref={hostRef} style={{ position: 'absolute', inset: 0 }} />
+    <>
+      <div
+        ref={bgRef}
+        className="canvas-bg"
+        style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}
+      />
+      <div ref={holderRef} style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', overflow: 'hidden' }}>
+        <div ref={hostRef} style={{ position: 'absolute', inset: 0 }} />
       <div className="zoombox" style={{ left: 16, right: 'auto' }}>
         <button
           className="tool-btn icon-btn" onClick={doUndo} disabled={!canUndo}
@@ -517,6 +527,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         </button>
       </div>
     </div>
+    </>
   )
 })
 
