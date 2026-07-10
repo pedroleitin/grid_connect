@@ -134,9 +134,11 @@ export default function Sidebar({
           label="Pin" value={shape} onChange={setShape}
           options={[{ value: 'circle', label: 'Circle' }, { value: 'square', label: 'Square' }]}
         />
-        {shape === 'square' && (
-          <Slider label="Corner radius" min={20} max={100} value={cornerRadius} suffix="%" onChange={setCornerRadius} />
-        )}
+        <div className={`collapse-row${shape === 'square' ? ' collapse-row--open' : ''}`}>
+          <div>
+            <Slider label="Corner radius" min={20} max={100} value={cornerRadius} suffix="%" onChange={setCornerRadius} />
+          </div>
+        </div>
         <Checkbox label="Hide guides" checked={hideGuides} onChange={setHideGuides} />
         <Checkbox label="Edit sizes" checked={editMode} onChange={setEditMode} />
 

@@ -5,6 +5,8 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Added
+- **Animated Corner radius reveal**: the **Corner radius** slider now slides/fades in and out
+  (max-height + opacity) when toggling **Pin → Square/Circle**, instead of appearing abruptly.
 - **Adjustable square corner radius**: with **Pin → Square**, a **Corner radius** slider (20–100%)
   appears below the Pin control and drives both the guide squares' corners and the rope collision
   (20% = mild rounding, 100% = fully rounded). The **Size** slider was renamed from "Circle size".

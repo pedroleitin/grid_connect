@@ -194,6 +194,15 @@ canvas { display: block; cursor: crosshair; }
 .tool-btn.icon-btn { width: 34px; padding: 0; }
 .tool-btn svg { display: block; }
 .tool-btn:hover { background: #ffc800; color: var(--c-accent-ink); }
+
+/* collapsible row: animates open/close via max-height + opacity */
+.collapse-row {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.28s ease, opacity 0.28s ease;
+}
+.collapse-row--open { max-height: 80px; opacity: 1; }
 .tool-btn:disabled { opacity: 0.35; cursor: default; }
 .tool-btn:disabled:hover { background: var(--c-btn); }
 .tool-btn.active {
