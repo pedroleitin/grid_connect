@@ -5,7 +5,7 @@ import GridCanvas from './components/GridCanvas'
 export default function App() {
   const [cols, setCols] = useState(6)
   const [rows, setRows] = useState(6)
-  const [cellSize, setCellSize] = useState(56)   // circle diameter
+  const [cellSize, setCellSize] = useState(100)  // circle diameter
   const [gap, setGap] = useState(22)             // spacing between circles
   const [tension, setTension] = useState(200)    // rope tension (100..200); 200 = glued
   const [style, setStyle] = useState('fill')     // 'fill' | 'stroke'

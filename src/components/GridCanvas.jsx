@@ -431,7 +431,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           title="Undo" aria-label="Undo"
         >
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+            <polyline points="9 14 4 9 9 4" /><path d="M4 9h11a5 5 0 0 1 0 10H8" />
           </svg>
         </button>
         <button
@@ -439,7 +439,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           title="Redo" aria-label="Redo"
         >
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 7v6h-6" /><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" />
+            <polyline points="15 14 20 9 15 4" /><path d="M20 9H9a5 5 0 0 0 0 10h7" />
           </svg>
         </button>
       </div>
