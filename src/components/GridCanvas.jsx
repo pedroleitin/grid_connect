@@ -371,7 +371,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             for (let c = 0; c < cfg.cols; c++) {
               const ct = cellCenter(r, c, cfg), s = sizeOf(cfg, r, c)
               const key = `${r},${c}`
-              const ignored = edit && ignoredRef.current.has(key)
+              const ignored = ignoredRef.current.has(key)
               // hover ease (edit mode only): drives opacity + border
               let t = 0
               if (edit) {
