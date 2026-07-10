@@ -96,9 +96,9 @@ body { margin: 0; font-family: var(--font-sans); color: var(--c-text); backgroun
   display: flex; padding: 3px; gap: 0;
   background: color-mix(in srgb, var(--c-line) 20%, transparent); border-radius: 10px;
   outline: 3px solid color-mix(in srgb, var(--c-line) 20%, transparent);
-  transition: outline-color 0.2s ease;
+  transition: background-color 0.2s ease, outline-color 0.2s ease;
 }
-.seg:hover { outline-color: #ffc800; }
+.seg:hover { background: #ffc800; outline-color: #ffc800; }
 .seg-opt {
   flex: 1; padding: 6px 16px; border: none; background: transparent;
   color: var(--c-text); font-size: 13px; font-weight: 500; line-height: 1.2;
