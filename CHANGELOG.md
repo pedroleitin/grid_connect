@@ -5,6 +5,9 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Added
+- **Square pins shape the rope**: with **Pin → Square**, the rope physics now collides with a
+  rounded-square pole (flat edges at the radius, softly rounded corners matching the guide) instead
+  of a circle, so the wrapped contour follows the square shape. Circle mode is unchanged.
 - **Full-viewport canvas**: the drawing surface now spans the whole window (behind the opaque
   sidebar), with a left inset that keeps the fit/zoom centered on the visible area. Content pans
   and zooms **under the sidebar** seamlessly instead of being hard-cropped at its edge.

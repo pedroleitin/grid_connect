@@ -113,6 +113,7 @@ export function stepRope(joints, poles, cfg, bounds) {
   const n = joints.length;
   if (n < 2) return 0;
   const k = STIFFNESS;
+  const square = cfg.shape === 'square';
   for (let s = 0; s < SUBSTEPS; s++) {
     // ring springs (closed loop: joint i <-> i+1)
     for (let i = 0; i < n; i++) {
@@ -129,15 +130,43 @@ export function stepRope(joints, poles, cfg, bounds) {
       j.x += j.vx; j.y += j.vy;
       j.vx *= DAMPING; j.vy *= DAMPING;
       for (const p of poles) {
-        const r = p.r;
         const ox = j.x - p.x, oy = j.y - p.y;
-        const d = Math.hypot(ox, oy);
-        if (d < r && d > 0.001) {
-          const scale = r / d;
-          j.x = p.x + ox * scale; j.y = p.y + oy * scale;
-          const nx = ox / d, ny = oy / d;
-          const vn = j.vx * nx + j.vy * ny; // remove inward velocity (no bounce -> settles)
-          if (vn < 0) { j.vx -= nx * vn; j.vy -= ny * vn; }
+        if (square) {
+          // rounded-square pole: flat edges at ±r, corners rounded (matches the
+          // guide's rect). Push any joint inside it out to the rounded boundary.
+          const b = p.r, cr = p.r * 0.36, B = p.r - cr;
+          const cx = Math.min(Math.max(ox, -B), B);
+          const cy = Math.min(Math.max(oy, -B), B);
+          const vx = ox - cx, vy = oy - cy;
+          const vlen = Math.hypot(vx, vy);
+          if (vlen > 0.001) {
+            if (vlen < cr) {           // inside the rounded band -> push out radially
+              const nx = vx / vlen, ny = vy / vlen;
+              j.x = p.x + cx + nx * cr; j.y = p.y + cy + ny * cr;
+              const vn = j.vx * nx + j.vy * ny;
+              if (vn < 0) { j.vx -= nx * vn; j.vy -= ny * vn; }
+            }
+          } else {                     // deep inside the core rect -> nearest edge
+            const dl = ox + B, dr = B - ox, dt = oy + B, dbm = B - oy;
+            const m = Math.min(dl, dr, dt, dbm);
+            let nx = 0, ny = 0;
+            if (m === dl) { nx = -1; j.x = p.x - b; }
+            else if (m === dr) { nx = 1; j.x = p.x + b; }
+            else if (m === dt) { ny = -1; j.y = p.y - b; }
+            else { ny = 1; j.y = p.y + b; }
+            const vn = j.vx * nx + j.vy * ny;
+            if (vn < 0) { j.vx -= nx * vn; j.vy -= ny * vn; }
+          }
+        } else {
+          const r = p.r;
+          const d = Math.hypot(ox, oy);
+          if (d < r && d > 0.001) {
+            const scale = r / d;
+            j.x = p.x + ox * scale; j.y = p.y + oy * scale;
+            const nx = ox / d, ny = oy / d;
+            const vn = j.vx * nx + j.vy * ny; // remove inward velocity (no bounce -> settles)
+            if (vn < 0) { j.vx -= nx * vn; j.vy -= ny * vn; }
+          }
         }
       }
       if (j.x < bounds.xMin) { j.x = bounds.xMin; j.vx *= -0.5; }

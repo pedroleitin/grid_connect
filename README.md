@@ -88,7 +88,8 @@ assets/                    # reference images
 - **Spacing** — gap between containers (grows the canvas so nothing is clipped).
 - **Rope tension** — settle tightness (100 = loose/round wrap, 200 = tight/glued to the circles).
 - **Style** — Filled (blob) or Outline (line).
-- **Pin** — Circle or Square (only affects the guide; the rope always collides with the circular edge).
+- **Pin** — Circle or Square. The rope collides with the chosen shape (a circle, or a
+  rounded square with flat edges), so the wrap follows it.
 - **Hide guides** — draw without the pin dots showing (animated fade).
 - **Edit sizes** — resize each circle independently by dragging its edge handle.
 - **Undo / Redo** — floating icon buttons at the bottom-left of the canvas; **Clear** in the sidebar.
