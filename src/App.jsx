@@ -53,19 +53,20 @@ export default function App() {
         )}
       </button>
 
-      <main className="h-full" style={{ paddingLeft: 360 }}>
+      <main className="h-full">
         <GridCanvas
           ref={canvasApi}
           cols={cols} rows={rows} cellSize={cellSize} gap={gap}
           shape={shape} tension={tension} style={style}
           hideGuides={hideGuides} editMode={editMode} theme={darkMode ? 'dark' : 'light'}
+          leftInset={330}
         />
       </main>
 
       {/* export bar centered at the bottom of the canvas area */}
       <div
         className="fixed bottom-4 z-50 flex gap-2 p-2 rounded-[15px]"
-        style={{ left: 'calc(50% + 180px)', transform: 'translateX(-50%)', color: 'var(--c-text)' }}
+        style={{ left: 'calc(50% + 165px)', transform: 'translateX(-50%)', color: 'var(--c-text)' }}
       >
         <button
           className="btn-menu flex items-center gap-2 px-4 py-2 text-[13px] font-medium"

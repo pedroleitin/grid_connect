@@ -42,9 +42,10 @@ const MIN_DIAM = 8            // per-circle size limits
 const MAX_DIAM = 300          // edit mode lets a circle grow beyond its container
 const clampDiam = (d) => Math.max(MIN_DIAM, Math.min(MAX_DIAM, d))
 
-const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, hideGuides, editMode, theme }, ref) {
+const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, hideGuides, editMode, theme, leftInset = 0 }, ref) {
   const holderRef = useRef(null)   // p5 host container (pans/zooms)
   const bgRef = useRef(null)       // full-page dotted background (single seamless layer)
+  const insetRef = useRef(leftInset) // left area hidden by the sidebar (for centering)
   const hostRef = useRef(null)     // p5 canvas mounts here
   const p5Ref = useRef(null)
   const sizesRef = useRef(new Map())  // per-cell diameter overrides: "r,c" -> px
@@ -101,6 +102,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   useEffect(() => {
     editModeRef.current = editMode
     if (!editMode) { hoverPinRef.current = null; dragPinRef.current = null }
+    insetRef.current = leftInset
     cfgRef.current = { cols, rows, cellSize, gap, shape, tension, style, hideGuides, sizes: sizesRef.current, ignored: ignoredRef.current }
     // geometry that changes the canvas size (cols/rows/spacing) re-fits the
     // content centered, so the grid always fits on screen and grows from the
@@ -157,17 +159,18 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       }
       const fit = () => {
         const el = holderRef.current; if (!el) return
-        const W = el.clientWidth, H = el.clientHeight
+        const inset = insetRef.current
+        const availW = Math.max(1, el.clientWidth - inset), H = el.clientHeight
         const { w, h } = canvasSize(cfgRef.current.cols, cfgRef.current.rows, cfgRef.current.gap)
         const margin = 60
-        const scale = clampScale(Math.min((W - margin) / w, (H - margin) / h))
-        setView({ scale, tx: (W - w * scale) / 2, ty: (H - h * scale) / 2 })
+        const scale = clampScale(Math.min((availW - margin) / w, (H - margin) / h))
+        setView({ scale, tx: inset + (availW - w * scale) / 2, ty: (H - h * scale) / 2 })
       }
       ctrlRef.current = {
         fit,
         reset: () => { touchedRef.current = false; fit() },
-        zoomIn: () => { markTouched(); zoomAt(1.2, p.width / 2, p.height / 2) },
-        zoomOut: () => { markTouched(); zoomAt(1 / 1.2, p.width / 2, p.height / 2) },
+        zoomIn: () => { markTouched(); zoomAt(1.2, (insetRef.current + p.width) / 2, p.height / 2) },
+        zoomOut: () => { markTouched(); zoomAt(1 / 1.2, (insetRef.current + p.width) / 2, p.height / 2) },
         togglePan: () => {
           panToolRef.current = !panToolRef.current
           setPanTool(panToolRef.current)
@@ -488,7 +491,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       />
       <div ref={holderRef} style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', overflow: 'hidden' }}>
         <div ref={hostRef} style={{ position: 'absolute', inset: 0 }} />
-      <div className="zoombox" style={{ left: 16, right: 'auto' }}>
+      <div className="zoombox" style={{ left: leftInset + 16, right: 'auto' }}>
         <button
           className="tool-btn icon-btn" onClick={doUndo} disabled={!canUndo}
           title="Undo" aria-label="Undo"
