@@ -62,6 +62,10 @@ All notable changes to this project. Newest first.
 - Full project translated to **English** (UI, comments, README, docs, `index.html` lang).
 
 ### Fixed
+- **Rope now hugs the circles reliably** at any size. Spring stiffness is fixed (fast, stable);
+  the **Rope tension** slider maps to the freeze threshold (`calmFor`) instead of stiffness, so a
+  higher tension always settles tighter (previously the wrap froze early with slack and the slider
+  only helped by accident).
 - Spurious "fan of lines" on real drags — input now uses Pointer Events with `setPointerCapture`
   and `getBoundingClientRect` instead of `p.mouseX/mouseY`.
 

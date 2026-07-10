@@ -71,15 +71,19 @@ const R2 = (n) => Math.round(n * 100) / 100;
    tightly around the circles it encloses, producing clean geometric shapes. */
 
 export const REST_LENGTH = 3;   // spring rest length (px): tiny -> ring contracts
-export const SUBSTEPS = 20;     // physics iterations per frame
+export const SUBSTEPS = 40;     // physics iterations per frame (higher = faster settle)
 export const DAMPING = 0.9;     // velocity damping (settles the motion)
-export const CALM_SPEED = 0.05; // max joint speed below which the sim is "calm"
+export const STIFFNESS = 0.12;  // fixed spring stiffness (fast, stable convergence)
+export const CALM_SPEED = 0.05; // legacy default calm threshold (see calmFor)
 
-/* Tension slider (100..200) -> spring stiffness (Rogo range ~0.001..0.2).
-   Higher tension = stiffer springs = tighter wrap. */
-export function springinessFor(tension) {
-  const t = Math.max(0, Math.min(1, (tension - 100) / 100));
-  return 0.01 + t * 0.19;
+/* Tension slider (100..200) -> settle tightness.
+   The ring always converges to the tight wrap given enough time; tension controls
+   HOW tight it is when the sim freezes. Higher tension = lower calm threshold = the
+   sim keeps contracting longer = it hugs the circles more closely. Mapping is
+   exponential so the high end reaches a near-perfect (sub-pixel) hug. */
+export function calmFor(tension) {
+  const u = Math.max(0, Math.min(1, (tension - 100) / 100));
+  return 0.02 * Math.pow(0.0015 / 0.02, u);
 }
 
 /* Resample a drawn (open) polyline into joints spaced ~step px apart, so the
@@ -108,7 +112,7 @@ export function seedJoints(points, step = 10) {
 export function stepRope(joints, poles, cfg, bounds) {
   const n = joints.length;
   if (n < 2) return 0;
-  const k = springinessFor(cfg.tension);
+  const k = STIFFNESS;
   for (let s = 0; s < SUBSTEPS; s++) {
     // ring springs (closed loop: joint i <-> i+1)
     for (let i = 0; i < n; i++) {

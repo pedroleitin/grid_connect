@@ -42,8 +42,10 @@ pan/zoom canvas; circles can be resized independently (Edit sizes). Exports SVG/
   joints (`seedJoints`). Springs have a tiny rest length (`REST_LENGTH`) so the ring contracts; each
   pin pushes joints inside it back to its edge (per-pin radius). `stepRope` runs `SUBSTEPS`
   spring+collision+bounds iterations per frame → the rope snaps tightly around the enclosed circles.
-  It runs while `simRef.active`, freezes when max speed < `CALM_SPEED`; `wake()` re-activates on any
-  change. `springinessFor(tension)` maps the slider (100..200) to stiffness (~0.01 loose → 0.2 tight).
+  It runs while `simRef.active`, freezes when max speed < `calmFor(tension)`; `wake()` re-activates on
+  any change. Spring stiffness is a fixed `STIFFNESS`; the slider maps to `calmFor(tension)` (the
+  freeze threshold): higher tension = later freeze = tighter hug (100 loose → 200 glued). Pins in
+  `cfg.ignored` are skipped by `pins()`.
 - **Render/Export:** closed Catmull-Rom spline through the settled joints; SVG = one `<path>` per
   rope (fill or stroke), no guide circles or filters; PNG at 2x transparent.
 - UI language and comments: **English**. Smallest change that respects the existing style.

@@ -101,7 +101,7 @@ assets/                    # reference images
 | `pins` / `sizeOf` | pin centers with a **per-pin radius** (per-circle size override or the global `cellSize`) |
 | `seedJoints`      | resample the drawn loop into an evenly spaced ring of joints    |
 | `stepRope`        | one physics frame: ring springs + pole collisions + bounds      |
-| `springinessFor`  | Tension slider (100..200) → spring stiffness (~0.01..0.2)        |
+| `calmFor`         | Tension slider (100..200) → settle tightness (freeze threshold; higher = tighter) |
 | `splineSegments`  | closed Catmull-Rom through the settled joints (render/export)   |
 
 ## Backlog & changelog

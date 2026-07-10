@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 're
 import p5 from 'p5'
 import {
   canvasSize, cellCenter, pins, seedJoints, stepRope,
-  splineSegments, buildSVG, CALM_SPEED, CELL, PAD, sizeOf,
+  splineSegments, buildSVG, calmFor, CELL, PAD, sizeOf,
 } from '../lib/geometry'
 
 /* render a rope: closed Catmull-Rom spline through its physics joints */
@@ -346,7 +346,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           const bounds = { xMin: 0, xMax: w, yMin: 0, yMax: h }
           let vmax = 0
           for (const rope of ropesRef.current) vmax = Math.max(vmax, stepRope(rope.joints, poles, cfg, bounds))
-          if (vmax < CALM_SPEED) simRef.current.active = false
+          if (vmax < calmFor(cfg.tension)) simRef.current.active = false
         }
 
         const v = viewRef.current

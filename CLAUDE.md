@@ -56,10 +56,12 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
   contracts; each pin pushes any joint inside it back to its edge (per-pin radius — `pins()` returns
   `{x, y, r}`, `r` from `sizeOf/2`). `stepRope()` runs `SUBSTEPS` spring+collision+bounds iterations
   per frame; the rope snaps tightly around the enclosed circles (clean geometric shapes). It runs
-  while `simRef.active` and freezes when the max joint speed drops below `CALM_SPEED`; any change
-  calls `wake()`.
-- **Tension → stiffness:** `springinessFor(tension)` maps the slider (100..200) to spring
-  stiffness (~0.01 loose → 0.2 tight/glued).
+  while `simRef.active` and freezes when the max joint speed drops below `calmFor(tension)`; any change
+  calls `wake()`. Pins listed as ignored (`cfg.ignored`) are skipped by `pins()`, so the rope passes
+  through them.
+- **Tension → tightness:** spring stiffness is a fixed `STIFFNESS` (fast, stable convergence). The
+  slider controls `calmFor(tension)` — the speed threshold at which the sim freezes: higher tension =
+  lower threshold = the ring settles later and hugs tighter (100 ≈ loose/rounded, 200 ≈ glued).
 - **Render:** closed Catmull-Rom spline (`splineSegments`) through the settled joints,
   `style` = `fill` | `stroke`.
 - **StrictMode:** the mount effect creates/cleans up the p5 (`p5Ref.current.remove()`). Do not create
