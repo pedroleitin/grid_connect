@@ -58,6 +58,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const guideRef = useRef(1)  // animated pin opacity: eases to 0 when guides hidden
   const editModeRef = useRef(editMode)   // mirror for the p5 loop
   const hoverPinRef = useRef(null)        // { r, c } under the cursor in edit mode
+  const hoverAnimRef = useRef(new Map())  // per-pin hover ease: "r,c" -> 0..1
   const dragPinRef = useRef(null)         // { r, c } being resized
 
   // view transform: world -> screen is  screen = world * scale + (tx, ty)
@@ -340,38 +341,59 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         p.translate(v.tx, v.ty)
         p.scale(v.scale)
 
-        // guides (pins) — fade in/out when the "hide guides" toggle changes
-        const gTarget = cfg.hideGuides ? 0 : 1
+        // guides (pins) — fade in/out with "hide guides"; forced visible in edit mode
+        const edit = editModeRef.current
+        const gTarget = (cfg.hideGuides && !edit) ? 0 : 1
         guideRef.current += (gTarget - guideRef.current) * 0.18
         if (guideRef.current < 0.003) guideRef.current = 0
         if (guideRef.current > 0.997) guideRef.current = 1
-        if (guideRef.current > 0) {
-          const col = p.color(COL.empty); col.setAlpha(255 * guideRef.current)
-          p.noStroke(); p.fill(col)
+
+        const drawGuides = () => {
+          if (guideRef.current <= 0) return
+          const a = guideRef.current
+          const active = edit ? (dragPinRef.current || hoverPinRef.current) : null
+          const activeKey = active ? `${active.r},${active.c}` : null
+          const anim = hoverAnimRef.current
           for (let r = 0; r < cfg.rows; r++)
             for (let c = 0; c < cfg.cols; c++) {
               const ct = cellCenter(r, c, cfg), s = sizeOf(cfg, r, c)
+              // fill
+              const col = p.color(COL.empty); col.setAlpha(255 * a)
+              p.noStroke(); p.fill(col)
               if (cfg.shape === 'circle') p.circle(ct.x, ct.y, s)
               else p.rect(ct.x - s / 2, ct.y - s / 2, s, s, s * 0.18)
+
+              if (!edit) continue
+              // animated dotted border: grows + turns accent when hovered/dragged
+              const key = `${r},${c}`
+              const prev = anim.get(key) || 0
+              const t = prev + ((key === activeKey ? 1 : 0) - prev) * 0.2
+              anim.set(key, t < 0.001 ? 0 : t)
+              const base = p.color(COL.ink); base.setAlpha(90 * a)
+              const bcol = p.lerpColor(base, p.color(COL.accent), t)
+              const rad = s / 2 + (2 + 6 * t) / v.scale
+              p.noFill(); p.stroke(bcol); p.strokeWeight((1.5 + 1.5 * t) / v.scale)
+              p.drawingContext.setLineDash([4 / v.scale, 4 / v.scale])
+              if (cfg.shape === 'circle') p.circle(ct.x, ct.y, rad * 2)
+              else p.rect(ct.x - rad, ct.y - rad, rad * 2, rad * 2, rad * 2 * 0.18)
+              p.drawingContext.setLineDash([])
+              // resize handle on the right edge, fades in with hover
+              if (t > 0.01) {
+                const hc = p.color(COL.accent); hc.setAlpha(255 * t)
+                p.noStroke(); p.fill(hc)
+                p.circle(ct.x + rad, ct.y, (12 * t) / v.scale)
+              }
             }
         }
 
-        // edit mode: highlight the hovered/dragged pin and show its resize handle
-        const active = editModeRef.current ? (dragPinRef.current || hoverPinRef.current) : null
-        if (active) {
-          const ct = cellCenter(active.r, active.c, cfg)
-          const rad = sizeOf(cfg, active.r, active.c) / 2
-          const acc = p.color(COL.accent)
-          p.noFill(); p.stroke(acc); p.strokeWeight(2 / v.scale)
-          if (cfg.shape === 'circle') p.circle(ct.x, ct.y, rad * 2)
-          else p.rect(ct.x - rad, ct.y - rad, rad * 2, rad * 2, rad * 2 * 0.18)
-          // handle dot on the right edge
-          p.noStroke(); p.fill(acc)
-          p.circle(ct.x + rad, ct.y, 12 / v.scale)
-        }
+        // normal: guides sit under the ropes
+        if (!edit) drawGuides()
 
         // ropes
         for (const rope of ropesRef.current) drawRope(p, rope.joints, cfg.style, COL)
+
+        // edit mode: guides render on top of the drawings
+        if (edit) drawGuides()
 
         // preview of the loop being drawn
         if (curRef.current && curRef.current.length > 1) {
