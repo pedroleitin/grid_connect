@@ -82,9 +82,10 @@ body { margin: 0; font-family: var(--font-sans); color: var(--c-text); backgroun
 .toggle-switch {
   position: relative; width: 70px; height: 17px; border-radius: 17px;
   background-color: var(--c-line); cursor: pointer; border: none;
-  transition: background-color 0.2s ease; flex-shrink: 0; padding: 0;
+  outline: 4px solid var(--c-line);
+  transition: background-color 0.2s ease, outline-color 0.2s ease; flex-shrink: 0; padding: 0;
 }
-.toggle-switch:hover { background-color: #ffc800; }
+.toggle-switch:hover { background-color: #ffc800; outline-color: #ffc800; }
 .toggle-thumb {
   position: absolute; top: 0; width: 39px; height: 17px; border-radius: 17px;
   transition: left 0.15s; box-sizing: border-box;
