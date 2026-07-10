@@ -87,11 +87,12 @@ assets/                    # reference images
 - **Size** — pin diameter; grows within its container without moving neighbors or resizing the canvas.
 - **Spacing** — gap between containers (grows the canvas so nothing is clipped).
 - **Rope tension** — settle tightness (100 = loose/round wrap, 200 = tight/glued to the circles).
-- **Style** — Filled (blob) or Outline (line).
+- **Style** — Filled (blob) or Outline (line); switching crossfades the rope's opacity.
 - **Pin** — Circle or Square. The rope collides with the chosen shape (a circle, or a
   rounded square with flat edges), so the wrap follows it.
-- **Corner radius** (Square only) — 0–100% control for the squares' corner rounding, driving both
-  the guides and the rope contour (20% = mild rounding, 100% = fully rounded).
+- **Corner radius** (Square only) — 20–100% control for the squares' corner rounding, driving both
+  the guides and the rope contour (20% = mild rounding, 100% = fully rounded); the slider slides
+  and fades in/out when toggling the Pin shape.
 - **Hide guides** — draw without the pin dots showing (animated fade).
 - **Edit sizes** — resize each circle independently by dragging its edge handle.
 - **Undo / Redo** — floating icon buttons at the bottom-left of the canvas; **Clear** in the sidebar.

@@ -17,7 +17,7 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
 
 ## Architecture
 
-- `src/App.jsx` — state owner: `cols, rows, cellSize, gap, tension, style, shape`, plus
+- `src/App.jsx` — state owner: `cols, rows, cellSize, gap, tension, style, shape, cornerRadius`, plus
   `hideGuides`, `editMode`, `darkMode`. Passes everything to `Sidebar` and `GridCanvas`; actions
   (undo/clear) via `ref`; **Export SVG/PNG** is a floating bar centered at the bottom of the canvas.
 - `src/components/GridCanvas.jsx` — p5 as an instance inside `useEffect`.
@@ -68,7 +68,10 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
   slider controls `calmFor(tension)` — the speed threshold at which the sim freezes: higher tension =
   lower threshold = the ring settles later and hugs tighter (100 ≈ loose/rounded, 200 ≈ glued).
 - **Render:** closed Catmull-Rom spline (`splineSegments`) through the settled joints,
-  `style` = `fill` | `stroke`.
+  `style` = `fill` | `stroke`. Square pins use a `cornerRadius` (20–100%) that drives both the guide
+  rect corners and the rounded-square collision. Switching `style` crossfades the rope opacity
+  (`styleAnimRef`: draws the old + new style with `1-t`/`t` alpha as `t` ramps 0→1); the Corner
+  radius slider itself slides/fades via the `.collapse-row` CSS class (not Tailwind's `.collapse`).
 - **StrictMode:** the mount effect creates/cleans up the p5 (`p5Ref.current.remove()`). Do not create
   multiple instances.
 

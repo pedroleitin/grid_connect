@@ -14,7 +14,7 @@ or ignored (Edit sizes). Exports SVG/PNG.
 
 ## Structure
 
-- `src/App.jsx` — central state: `cols, rows, cellSize, gap, tension, style, shape`,
+- `src/App.jsx` — central state: `cols, rows, cellSize, gap, tension, style, shape, cornerRadius`,
   plus `hideGuides`, `editMode`, `darkMode`.
 - `src/components/Sidebar.jsx` — controls (`Slider`, `Segmented`, `Checkbox` components).
 - `src/components/GridCanvas.jsx` — p5 in `useEffect`; pan/zoom view transform; rope physics;
@@ -52,5 +52,8 @@ or ignored (Edit sizes). Exports SVG/PNG.
   freeze threshold): higher tension = later freeze = tighter hug (100 loose → 200 glued). Pins in
   `cfg.ignored` are skipped by `pins()`.
 - **Render/Export:** closed Catmull-Rom spline through the settled joints; SVG = one `<path>` per
-  rope (fill or stroke), no guide circles or filters; PNG at 2x transparent.
+  rope (fill or stroke), no guide circles or filters; PNG at 2x transparent. Square pins use a
+  `cornerRadius` (20–100%) for both the guide rects and the rounded-square collision. Switching
+  `style` crossfades the rope opacity (`styleAnimRef`, old+new drawn at `1-t`/`t`); the Corner radius
+  slider slides/fades in via `.collapse-row` (avoid Tailwind's `.collapse` = `visibility: collapse`).
 - UI language and comments: **English**. Smallest change that respects the existing style.
