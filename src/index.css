@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Theme palette (grid-gen-2 style) — runtime CSS variables that
+   switch on [data-theme="dark"]. The Tailwind @theme tokens below
+   reference these, so utilities (bg-panel, text-ink, …) follow the
+   active theme.
+   ============================================================ */
+:root {
+  --c-bg: #f7f5ef;
+  --c-panel: #f1eee7;
+  --c-text: #414141;
+  --c-line: #d7d2c7;
+  --c-line-strong: #b1b1b1;
+  --c-ink: #111110;
+  --c-empty: #d7d2c7;
+  --c-btn: #ffffff;
+  --c-dot: %23D9D9D9;
+  --c-muted: #978f7e;
+  --c-hover: #ebe6db;
+  --c-accent-ink: #3a3526;
+}
+
+[data-theme="dark"] {
+  --c-bg: #111110;
+  --c-panel: #1a1918;
+  --c-text: #c8c4bc;
+  --c-line: #2d2b28;
+  --c-line-strong: #3d3b38;
+  --c-ink: #f1eee7;
+  --c-empty: #2a2825;
+  --c-btn: #242220;
+  --c-dot: %23333330;
+  --c-muted: #857f74;
+  --c-hover: #2f2c28;
+  --c-accent-ink: #2a2618;
+}
+
+@theme {
+  --color-base: var(--c-bg);
+  --color-panel: var(--c-panel);
+  --color-line: var(--c-line);
+  --color-line-strong: var(--c-line-strong);
+  --color-ink: var(--c-ink);
+  --color-text: var(--c-text);
+  --color-empty: var(--c-empty);
+  --color-btn: var(--c-btn);
+  --color-accent: #ffc800;
+
+  --font-sans: "Outfit", system-ui, sans-serif;
+  --font-mono: "Ubuntu Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body { margin: 0; font-family: var(--font-sans); color: var(--c-text); background: var(--c-bg); }
+
+::selection { background-color: rgba(255, 200, 0, 0.8); }
+
+/* canvas dot pattern (follows theme) */
+.canvas-bg {
+  background-color: var(--c-bg);
+  background-image: url("data:image/svg+xml,%3Csvg width='25' height='25' viewBox='0 0 25 25' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle opacity='0.5' cx='12.5' cy='12.5' r='1.25' fill='%23D9D9D9'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-position: center;
+}
+[data-theme="dark"] .canvas-bg {
+  background-image: url("data:image/svg+xml,%3Csvg width='25' height='25' viewBox='0 0 25 25' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle opacity='0.5' cx='12.5' cy='12.5' r='1.25' fill='%23333330'/%3E%3C/svg%3E");
+}
+
+/* thin scrollbar for the menu */
+.menu-scroll { scrollbar-width: thin; scrollbar-color: var(--c-line) transparent; }
+.menu-scroll::-webkit-scrollbar { width: 4px; }
+.menu-scroll::-webkit-scrollbar-track { background: transparent; }
+.menu-scroll::-webkit-scrollbar-thumb { background-color: var(--c-line); border-radius: 99px; }
+.menu-scroll::-webkit-scrollbar-thumb:hover { background-color: var(--c-line-strong); }
+
+/* section dividers dim slightly in dark */
+[data-theme="dark"] .divider { border-color: rgba(255, 255, 255, 0.08); }
+
+/* toggle switch */
+.toggle-switch {
+  position: relative; width: 70px; height: 17px; border-radius: 17px;
+  background-color: var(--c-line); cursor: pointer; border: none;
+  transition: background-color 0.2s ease; flex-shrink: 0; padding: 0;
+}
+.toggle-switch:hover { background-color: #ffc800; }
+.toggle-thumb {
+  position: absolute; top: 0; width: 39px; height: 17px; border-radius: 17px;
+  transition: left 0.15s; box-sizing: border-box;
+}
+
+/* menu buttons */
+.btn-menu {
+  background: var(--c-btn); border: 1.5px solid var(--c-line-strong); color: var(--c-text);
+  border-radius: 30px; cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.btn-menu:hover { background: #ffc800; border-color: #ffc800; color: #414141; }
+.btn-menu:hover svg { stroke: #414141; }
+.btn-menu.active { background: #ffc800; border-color: #ffc800; color: #414141; }
+
+/* icon buttons (theme toggle) */
+.eye-btn { transition: background-color 0.15s ease; }
+.eye-btn:hover { background-color: rgba(0, 0, 0, 0.07); }
+[data-theme="dark"] .eye-btn:hover { background-color: rgba(255, 255, 255, 0.1); }
+
+canvas { display: block; cursor: crosshair; }
+
+/* ============================================================
+   Ported from DRAW_GRID (pedroleitin/SVG_DRAW): bar slider (.rng)
+   and the solid-panel floating zoom box.
+   ============================================================ */
+
+/* bar slider: tall pill, label + value inside, dark fill shows value.
+   text is painted twice — dark on the track, light clipped to the fill —
+   so it always contrasts. */
+.rng {
+  position: relative;
+  height: 34px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--c-line) 20%, transparent);
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+  outline: none;
+  transition: background 0.18s ease;
+}
+.rng:hover, .rng:focus-visible { background: var(--c-line); }
+.rng:focus-visible { box-shadow: 0 0 0 2px var(--c-accent); }
+.rng-content {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 15px; box-sizing: border-box;
+  font-size: 13px; white-space: nowrap; pointer-events: none;
+  color: var(--c-text);
+}
+.rng-val { font-weight: 700; font-variant-numeric: tabular-nums; }
+.rng-fill {
+  position: absolute; top: 0; left: 0; height: 100%;
+  background: color-mix(in srgb, var(--c-text) 5%, transparent);
+  overflow: hidden;
+  transition: background 0.18s ease;
+}
+.rng:hover .rng-fill, .rng:focus-visible .rng-fill { background: var(--c-text); }
+.rng-content--light { color: var(--c-btn); opacity: 0; transition: opacity 0.18s ease; }
+.rng:hover .rng-content--light, .rng:focus-visible .rng-content--light { opacity: 1; }
+
+/* zoom box (bottom-right) — solid panel like the sidebar: no blur, no shadow */
+.zoombox {
+  position: absolute; right: 16px; bottom: 16px; z-index: 10;
+  padding: 8px; display: flex; align-items: center; gap: 6px;
+  background: var(--c-panel);
+  border-radius: 15px;
+}
+.zlabel {
+  min-width: 42px; text-align: center; color: var(--c-muted);
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px;
+  cursor: pointer;
+}
+
+/* tool button (icon or text) */
+.tool-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 34px; background: var(--c-btn); color: var(--c-text);
+  border: none; border-radius: 10px; padding: 0 12px;
+  font-size: 13px; cursor: pointer; white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.tool-btn.icon-btn { width: 34px; padding: 0; }
+.tool-btn svg { display: block; }
+.tool-btn:hover { background: var(--c-hover); }
+.tool-btn.active {
+  background: var(--c-accent); color: var(--c-accent-ink); font-weight: 600;
+}
+.tb-sep { width: 1px; align-self: stretch; background: var(--c-line); margin: 2px; }

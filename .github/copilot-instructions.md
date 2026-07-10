@@ -1,0 +1,49 @@
+# Copilot — Grid Generator
+
+A generative grid drawing tool: the user draws a loop around the circles and an
+**elastic rope** shrink-wraps tightly around them (Rogo style). The whole background is a
+pan/zoom canvas; circles can be resized independently (Edit sizes). Exports SVG/PNG.
+
+## Stack
+
+- **React 19 + Vite 6 + Tailwind CSS v4 + p5.js**.
+- Tailwind v4 **without config**: tokens in `@theme` (`src/index.css`) → utilities
+  `bg-panel`, `text-ink`, `border-line`, `bg-accent`, `font-mono`, etc.
+- p5 via npm. Run: `npm run dev`.
+
+## Structure
+
+- `src/App.jsx` — central state: `cols, rows, cellSize, gap, tension, style, shape`,
+  plus `hideGuides`, `editMode`, `darkMode`.
+- `src/components/Sidebar.jsx` — controls (`Slider`, `Segmented`, `Checkbox` components).
+- `src/components/GridCanvas.jsx` — p5 in `useEffect`; pan/zoom view transform; rope physics;
+  per-circle sizing (Edit mode); export via `ref`.
+- `src/lib/geometry.js` — geometry + `buildSVG` (single source, used by render and export).
+
+## Conventions / rules
+
+- **State used by the p5 loop goes in a `ref`** (`cfgRef`, `ropesRef`, `curRef`, `simRef`), not in
+  state, to avoid re-rendering per point or losing the drawing. Props sync `cfgRef` in an effect.
+- **Input via Pointer Events** (`pointerdown/move/up`, `setPointerCapture`, coords via
+  `getBoundingClientRect`). Do NOT use `p.mouseX/mouseY` (produces spurious points in real drags).
+- **Pan/zoom** is a render-only view transform in `viewRef` (`{scale, tx, ty}`); physics and export
+  stay in world coords so zoom never affects the SVG/PNG. `fit()` fits+centers (auto until touched,
+  and when the grid grows); dotted background pans/zooms via CSS; zoom box overlay + pan (hand) tool.
+- **Per-circle sizes** in `sizesRef` (`Map "r,c" -> diameter`) mirrored into `cfgRef.current.sizes`;
+  `geometry.sizeOf(cfg,r,c)` returns the override or global `cellSize`. **Edit mode** (`editModeRef`)
+  disables drawing: hover a pin (`pinAt` → `hoverPinRef`) to show a handle, drag (`dragPinRef`,
+  `resizePin`) to set its diameter. `pins()` returns `{x,y,r}` — collision radius is **per-pin**.
+- **Canvas sizing:** each pin has a fixed-size container (`CELL` in `geometry.js`, = circle-size
+  slider max). `cellSize` grows the circle inside its container (no neighbor move, no canvas resize);
+  `gap` (spacing) and cols/rows resize the canvas via `canvasSize(cols, rows, gap)`, so nothing clips.
+  On a spacing/size change each rope is re-seeded from its stored drawn loop (grid coords) and
+  re-settled — deterministic shape, no drift/topology loss.
+- **Elastic shrink-wrap (physics, Rogo model):** the drawn loop becomes a closed ring of spring
+  joints (`seedJoints`). Springs have a tiny rest length (`REST_LENGTH`) so the ring contracts; each
+  pin pushes joints inside it back to its edge (per-pin radius). `stepRope` runs `SUBSTEPS`
+  spring+collision+bounds iterations per frame → the rope snaps tightly around the enclosed circles.
+  It runs while `simRef.active`, freezes when max speed < `CALM_SPEED`; `wake()` re-activates on any
+  change. `springinessFor(tension)` maps the slider (100..200) to stiffness (~0.01 loose → 0.2 tight).
+- **Render/Export:** closed Catmull-Rom spline through the settled joints; SVG = one `<path>` per
+  rope (fill or stroke), no guide circles or filters; PNG at 2x transparent.
+- UI language and comments: **English**. Smallest change that respects the existing style.
