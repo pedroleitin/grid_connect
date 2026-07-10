@@ -134,7 +134,7 @@ export function stepRope(joints, poles, cfg, bounds) {
         if (square) {
           // rounded-square pole: flat edges at ±r, corners rounded (matches the
           // guide's rect). Push any joint inside it out to the rounded boundary.
-          const b = p.r, cr = p.r * 0.36, B = p.r - cr;
+          const b = p.r, cr = p.r * ((cfg.cornerRadius ?? 36) / 100), B = p.r - cr;
           const cx = Math.min(Math.max(ox, -B), B);
           const cy = Math.min(Math.max(oy, -B), B);
           const vx = ox - cx, vy = oy - cy;

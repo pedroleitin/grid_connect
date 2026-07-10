@@ -10,6 +10,7 @@ export default function App() {
   const [tension, setTension] = useState(200)    // rope tension (100..200); 200 = glued
   const [style, setStyle] = useState('fill')     // 'fill' | 'stroke'
   const [shape, setShape] = useState('circle')   // 'circle' | 'square'
+  const [cornerRadius, setCornerRadius] = useState(36) // square corner radius (% of half-size)
   const [hideGuides, setHideGuides] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
@@ -29,6 +30,7 @@ export default function App() {
         tension={tension} setTension={setTension}
         style={style} setStyle={setStyle}
         shape={shape} setShape={setShape}
+        cornerRadius={cornerRadius} setCornerRadius={setCornerRadius}
         hideGuides={hideGuides} setHideGuides={setHideGuides}
         editMode={editMode} setEditMode={setEditMode}
         onClear={() => canvasApi.current?.clear()}
@@ -58,6 +60,7 @@ export default function App() {
           ref={canvasApi}
           cols={cols} rows={rows} cellSize={cellSize} gap={gap}
           shape={shape} tension={tension} style={style}
+          cornerRadius={cornerRadius}
           hideGuides={hideGuides} editMode={editMode} theme={darkMode ? 'dark' : 'light'}
           leftInset={330}
         />

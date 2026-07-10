@@ -84,12 +84,14 @@ assets/                    # reference images
 ### Controls (Sidebar)
 
 - **Columns / Rows** — grid size (grows the canvas).
-- **Circle size** — pin diameter; grows within its container without moving neighbors or resizing the canvas.
+- **Size** — pin diameter; grows within its container without moving neighbors or resizing the canvas.
 - **Spacing** — gap between containers (grows the canvas so nothing is clipped).
 - **Rope tension** — settle tightness (100 = loose/round wrap, 200 = tight/glued to the circles).
 - **Style** — Filled (blob) or Outline (line).
 - **Pin** — Circle or Square. The rope collides with the chosen shape (a circle, or a
   rounded square with flat edges), so the wrap follows it.
+- **Corner radius** (Square only) — 0–100% control for the squares' corner rounding, driving both
+  the guides and the rope contour (0% = sharp, 100% = fully rounded).
 - **Hide guides** — draw without the pin dots showing (animated fade).
 - **Edit sizes** — resize each circle independently by dragging its edge handle.
 - **Undo / Redo** — floating icon buttons at the bottom-left of the canvas; **Clear** in the sidebar.

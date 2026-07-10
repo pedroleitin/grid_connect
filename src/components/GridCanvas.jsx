@@ -42,7 +42,7 @@ const MIN_DIAM = 8            // per-circle size limits
 const MAX_DIAM = 300          // edit mode lets a circle grow beyond its container
 const clampDiam = (d) => Math.max(MIN_DIAM, Math.min(MAX_DIAM, d))
 
-const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, hideGuides, editMode, theme, leftInset = 0 }, ref) {
+const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, hideGuides, editMode, theme, leftInset = 0 }, ref) {
   const holderRef = useRef(null)   // p5 host container (pans/zooms)
   const bgRef = useRef(null)       // full-page dotted background (single seamless layer)
   const insetRef = useRef(leftInset) // left area hidden by the sidebar (for centering)
@@ -50,7 +50,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const p5Ref = useRef(null)
   const sizesRef = useRef(new Map())  // per-cell diameter overrides: "r,c" -> px
   const ignoredRef = useRef(new Set())  // ignored cells ("r,c"): no drawing interaction
-  const cfgRef = useRef({ cols, rows, cellSize, gap, shape, tension, style, hideGuides, sizes: sizesRef.current, ignored: ignoredRef.current })
+  const cfgRef = useRef({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, hideGuides, sizes: sizesRef.current, ignored: ignoredRef.current })
   const ropesRef = useRef([])       // physics ropes: { loop, joints }
   const redoRef = useRef([])        // undone ropes, for redo
   const curRef = useRef(null)       // raw stroke points (world coords) while drawing
@@ -103,7 +103,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     editModeRef.current = editMode
     if (!editMode) { hoverPinRef.current = null; dragPinRef.current = null }
     insetRef.current = leftInset
-    cfgRef.current = { cols, rows, cellSize, gap, shape, tension, style, hideGuides, sizes: sizesRef.current, ignored: ignoredRef.current }
+    cfgRef.current = { cols, rows, cellSize, gap, shape, tension, style, cornerRadius, hideGuides, sizes: sizesRef.current, ignored: ignoredRef.current }
     // geometry that changes the canvas size (cols/rows/spacing) re-fits the
     // content centered, so the grid always fits on screen and grows from the
     // middle — even after the user has panned or zoomed.
@@ -118,7 +118,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     lastRowsRef.current = rows
     if (!touchedRef.current || geomChanged) ctrlRef.current?.fit()
     wake()
-  }, [cols, rows, cellSize, gap, shape, tension, style, hideGuides, editMode])
+  }, [cols, rows, cellSize, gap, shape, tension, style, cornerRadius, hideGuides, editMode])
 
   // re-read theme colors so pins/ropes recolor on light/dark switch (deferred to rAF
   // so the parent's data-theme update has committed first)
@@ -381,6 +381,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         const drawGuides = () => {
           if (guideRef.current <= 0) return
           const a = guideRef.current
+          const cr01 = (cfg.cornerRadius ?? 36) / 100
           const active = edit ? (dragPinRef.current || hoverPinRef.current) : null
           const activeKey = active ? `${active.r},${active.c}` : null
           const anim = hoverAnimRef.current
@@ -401,7 +402,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
               const col = p.color(ignored ? COL.danger : COL.empty); col.setAlpha(255 * fillA)
               p.noStroke(); p.fill(col)
               if (cfg.shape === 'circle') p.circle(ct.x, ct.y, s)
-              else p.rect(ct.x - s / 2, ct.y - s / 2, s, s, s * 0.18)
+              else p.rect(ct.x - s / 2, ct.y - s / 2, s, s, (s / 2) * cr01)
 
               if (!edit) continue
               // animated dotted border: grows + turns accent (red when ignored) on hover
@@ -412,7 +413,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
               p.noFill(); p.stroke(bcol); p.strokeWeight((1.5 + 1.5 * t) / v.scale)
               p.drawingContext.setLineDash([4 / v.scale, 4 / v.scale])
               if (cfg.shape === 'circle') p.circle(ct.x, ct.y, rad * 2)
-              else p.rect(ct.x - rad, ct.y - rad, rad * 2, rad * 2, rad * 2 * 0.18)
+              else p.rect(ct.x - rad, ct.y - rad, rad * 2, rad * 2, rad * cr01)
               p.drawingContext.setLineDash([])
               if (t > 0.01) {
                 // center X to toggle "ignore"

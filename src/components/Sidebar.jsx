@@ -105,6 +105,7 @@ function Segmented({ label, options, value, onChange }) {
 export default function Sidebar({
   cols, setCols, rows, setRows, cellSize, setCellSize, gap, setGap,
   tension, setTension, style, setStyle, shape, setShape,
+  cornerRadius, setCornerRadius,
   hideGuides, setHideGuides,
   editMode, setEditMode,
   onClear, onResetCircles,
@@ -121,7 +122,7 @@ export default function Sidebar({
 
         <Slider label="Columns" min={1} max={20} value={cols} onChange={setCols} />
         <Slider label="Rows" min={1} max={20} value={rows} onChange={setRows} />
-        <Slider label="Circle size" min={35} max={200} value={cellSize} onChange={setCellSize} />
+        <Slider label="Size" min={35} max={200} value={cellSize} onChange={setCellSize} />
         <Slider label="Spacing" min={0} max={80} value={gap} onChange={setGap} />
         <Slider label="Rope tension" min={100} max={200} value={tension} onChange={setTension} />
 
@@ -133,6 +134,9 @@ export default function Sidebar({
           label="Pin" value={shape} onChange={setShape}
           options={[{ value: 'circle', label: 'Circle' }, { value: 'square', label: 'Square' }]}
         />
+        {shape === 'square' && (
+          <Slider label="Corner radius" min={0} max={100} value={cornerRadius} suffix="%" onChange={setCornerRadius} />
+        )}
         <Checkbox label="Hide guides" checked={hideGuides} onChange={setHideGuides} />
         <Checkbox label="Edit sizes" checked={editMode} onChange={setEditMode} />
 
