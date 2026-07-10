@@ -350,7 +350,17 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         if (simRef.current.active && ropesRef.current.length) {
           const poles = pins(cfg)
           const { w, h } = canvasSize(cfg.cols, cfg.rows, cfg.gap)
-          const bounds = { xMin: 0, xMax: w, yMin: 0, yMax: h }
+          // bounds must cover the drawn ropes too (you can draw beyond the grid),
+          // otherwise joints get clamped to the grid rect and the shape is cropped
+          let xMin = 0, yMin = 0, xMax = w, yMax = h
+          for (const rope of ropesRef.current) {
+            for (const j of rope.joints) {
+              if (j.x < xMin) xMin = j.x; else if (j.x > xMax) xMax = j.x
+              if (j.y < yMin) yMin = j.y; else if (j.y > yMax) yMax = j.y
+            }
+          }
+          const M = 200
+          const bounds = { xMin: xMin - M, xMax: xMax + M, yMin: yMin - M, yMax: yMax + M }
           let vmax = 0
           for (const rope of ropesRef.current) vmax = Math.max(vmax, stepRope(rope.joints, poles, cfg, bounds))
           if (vmax < calmFor(cfg.tension)) simRef.current.active = false
