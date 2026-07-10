@@ -357,18 +357,23 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           for (let r = 0; r < cfg.rows; r++)
             for (let c = 0; c < cfg.cols; c++) {
               const ct = cellCenter(r, c, cfg), s = sizeOf(cfg, r, c)
-              // fill
-              const col = p.color(COL.empty); col.setAlpha(255 * a)
+              const key = `${r},${c}`
+              // hover ease (edit mode only): drives opacity + border
+              let t = 0
+              if (edit) {
+                const prev = anim.get(key) || 0
+                t = prev + ((key === activeKey ? 1 : 0) - prev) * 0.2
+                anim.set(key, t < 0.001 ? 0 : t)
+              }
+              // fill — 50% at rest, 100% on hover in edit mode
+              const fillA = edit ? a * (0.5 + 0.5 * t) : a
+              const col = p.color(COL.empty); col.setAlpha(255 * fillA)
               p.noStroke(); p.fill(col)
               if (cfg.shape === 'circle') p.circle(ct.x, ct.y, s)
               else p.rect(ct.x - s / 2, ct.y - s / 2, s, s, s * 0.18)
 
               if (!edit) continue
               // animated dotted border: grows + turns accent when hovered/dragged
-              const key = `${r},${c}`
-              const prev = anim.get(key) || 0
-              const t = prev + ((key === activeKey ? 1 : 0) - prev) * 0.2
-              anim.set(key, t < 0.001 ? 0 : t)
               const base = p.color(COL.ink); base.setAlpha(90 * a)
               const bcol = p.lerpColor(base, p.color(COL.accent), t)
               const rad = s / 2 + (2 + 6 * t) / v.scale
