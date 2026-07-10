@@ -91,7 +91,7 @@ assets/                    # reference images
 - **Pin** — Circle or Square. The rope collides with the chosen shape (a circle, or a
   rounded square with flat edges), so the wrap follows it.
 - **Corner radius** (Square only) — 0–100% control for the squares' corner rounding, driving both
-  the guides and the rope contour (0% = sharp, 100% = fully rounded).
+  the guides and the rope contour (20% = mild rounding, 100% = fully rounded).
 - **Hide guides** — draw without the pin dots showing (animated fade).
 - **Edit sizes** — resize each circle independently by dragging its edge handle.
 - **Undo / Redo** — floating icon buttons at the bottom-left of the canvas; **Clear** in the sidebar.

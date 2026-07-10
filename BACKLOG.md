@@ -9,7 +9,7 @@
   own container, so neighbors don't move). Physics + export respect the per-circle sizes.
 - [x] **Squares** mode: with **Pin → Square**, the rope collides with a rounded-square pole
   (flat edges, softly rounded corners matching the guide), so the wrap follows the square shape.
-  A **Corner radius** slider (0–100%) controls the rounding of both guides and the rope contour.
+  A **Corner radius** slider (20–100%) controls the rounding of both guides and the rope contour.
 - [ ] **Erase** tool: remove drawn ropes (or parts of them) directly on the canvas.
 - [x] **Ignore** circles: in Edit mode, click the center **X** of a pin to mark it ignored
   (reddish); ignored pins are skipped by the physics so the rope passes through them.

@@ -135,7 +135,7 @@ export default function Sidebar({
           options={[{ value: 'circle', label: 'Circle' }, { value: 'square', label: 'Square' }]}
         />
         {shape === 'square' && (
-          <Slider label="Corner radius" min={0} max={100} value={cornerRadius} suffix="%" onChange={setCornerRadius} />
+          <Slider label="Corner radius" min={20} max={100} value={cornerRadius} suffix="%" onChange={setCornerRadius} />
         )}
         <Checkbox label="Hide guides" checked={hideGuides} onChange={setHideGuides} />
         <Checkbox label="Edit sizes" checked={editMode} onChange={setEditMode} />

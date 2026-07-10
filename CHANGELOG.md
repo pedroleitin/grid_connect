@@ -5,9 +5,9 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Added
-- **Adjustable square corner radius**: with **Pin → Square**, a **Corner radius** slider (0–100%)
+- **Adjustable square corner radius**: with **Pin → Square**, a **Corner radius** slider (20–100%)
   appears below the Pin control and drives both the guide squares' corners and the rope collision
-  (0% = sharp square, 100% = fully rounded). The **Size** slider was renamed from "Circle size".
+  (20% = mild rounding, 100% = fully rounded). The **Size** slider was renamed from "Circle size".
 - **Square pins shape the rope**: with **Pin → Square**, the rope physics now collides with a
   rounded-square pole (flat edges at the radius, softly rounded corners matching the guide) instead
   of a circle, so the wrapped contour follows the square shape. Circle mode is unchanged.
