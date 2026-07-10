@@ -31,7 +31,6 @@ export default function App() {
         shape={shape} setShape={setShape}
         hideGuides={hideGuides} setHideGuides={setHideGuides}
         editMode={editMode} setEditMode={setEditMode}
-        onUndo={() => canvasApi.current?.undo()}
         onClear={() => canvasApi.current?.clear()}
       />
 

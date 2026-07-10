@@ -68,7 +68,7 @@ function Checkbox({ label, checked, onChange }) {
             style={{
               left: checked ? '31px' : '0px',
               backgroundColor: checked ? 'var(--c-text)' : 'transparent',
-              border: checked ? 'none' : '3px solid var(--c-text)',
+              border: checked ? 'none' : '4px solid var(--c-text)',
             }}
           />
         </button>
@@ -82,12 +82,12 @@ function Segmented({ label, options, value, onChange }) {
     <Row>
       <div className="px-5 py-3 flex items-center justify-between gap-3">
         <span className="text-sm" style={{ color: 'var(--c-text)', opacity: 0.5 }}>{label}</span>
-        <div className="flex gap-1.5">
+        <div className="seg">
           {options.map((o) => (
             <button
               key={o.value}
               onClick={() => onChange(o.value)}
-              className={'btn-menu px-3 py-1.5 text-[13px] font-medium' + (value === o.value ? ' active' : '')}
+              className={'seg-opt' + (value === o.value ? ' active' : '')}
             >
               {o.label}
             </button>
@@ -103,7 +103,7 @@ export default function Sidebar({
   tension, setTension, style, setStyle, shape, setShape,
   hideGuides, setHideGuides,
   editMode, setEditMode,
-  onUndo, onClear,
+  onClear,
 }) {
   return (
     <div
@@ -118,8 +118,8 @@ export default function Sidebar({
 
         <Slider label="Columns" min={1} max={20} value={cols} onChange={setCols} />
         <Slider label="Rows" min={1} max={20} value={rows} onChange={setRows} />
-        <Slider label="Circle size" min={35} max={120} value={cellSize} suffix="px" onChange={setCellSize} />
-        <Slider label="Spacing" min={0} max={80} value={gap} suffix="px" onChange={setGap} />
+        <Slider label="Circle size" min={35} max={200} value={cellSize} onChange={setCellSize} />
+        <Slider label="Spacing" min={0} max={80} value={gap} onChange={setGap} />
         <Slider label="Rope tension" min={100} max={200} value={tension} onChange={setTension} />
 
         <Segmented
@@ -133,7 +133,7 @@ export default function Sidebar({
         <Checkbox label="Hide guides" checked={hideGuides} onChange={setHideGuides} />
         <Checkbox label="Edit sizes" checked={editMode} onChange={setEditMode} />
 
-        <p className="px-5 py-3 text-[11px] leading-relaxed" style={{ color: 'var(--c-text)', opacity: 0.5 }}>
+        <p className="px-5 py-3 mt-auto text-[11px] leading-relaxed" style={{ color: 'var(--c-text)', opacity: 0.5 }}>
           Draw a loop anywhere on the canvas around the circles you want to wrap — an elastic
           rope snaps tightly around them. Scroll to pan, Ctrl/Cmd+scroll (or pinch) to zoom,
           Space+drag or middle-button drag to pan. Use the +/−/% controls to zoom or reset.
@@ -141,11 +141,8 @@ export default function Sidebar({
       </div>
 
       {/* action buttons pinned to the bottom */}
-      <div className="p-4 flex flex-col gap-2 divider border-t border-[#d7d2c7]/25">
-        <div className="flex gap-2">
-          <button className="btn-menu flex-1 py-2 text-[13px] font-medium" onClick={onUndo}>Undo</button>
-          <button className="btn-menu flex-1 py-2 text-[13px] font-medium" onClick={onClear}>Clear</button>
-        </div>
+      <div className="p-4 divider border-t border-[#d7d2c7]/25">
+        <button className="btn-menu w-full py-2 text-[13px] font-medium" onClick={onClear}>Clear</button>
       </div>
     </div>
   )

@@ -47,6 +47,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const sizesRef = useRef(new Map())  // per-cell diameter overrides: "r,c" -> px
   const cfgRef = useRef({ cols, rows, cellSize, gap, shape, tension, style, hideGuides, sizes: sizesRef.current })
   const ropesRef = useRef([])       // physics ropes: { loop, joints }
+  const redoRef = useRef([])        // undone ropes, for redo
   const curRef = useRef(null)       // raw stroke points (world coords) while drawing
   const simRef = useRef({ active: false })
   const lastGapRef = useRef(gap)
@@ -66,8 +67,21 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const panToolRef = useRef(false)  // hand tool: left-drag pans instead of drawing
   const [zoomPct, setZoomPct] = useState(100)
   const [panTool, setPanTool] = useState(false)
+  const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
 
   const wake = () => { simRef.current.active = true }
+
+  const doUndo = () => {
+    if (!ropesRef.current.length) return
+    redoRef.current.push(ropesRef.current.pop())
+    wake(); setCanUndo(ropesRef.current.length > 0); setCanRedo(true)
+  }
+  const doRedo = () => {
+    if (!redoRef.current.length) return
+    ropesRef.current.push(redoRef.current.pop())
+    wake(); setCanRedo(redoRef.current.length > 0); setCanUndo(true)
+  }
 
   const reseed = (cfg) => {
     const O = PAD + CELL / 2, pitch = CELL + cfg.gap
@@ -252,6 +266,8 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
               const cfg = cfgRef.current, O = PAD + CELL / 2, pitch = CELL + cfg.gap
               const loop = pts.map((q) => ({ gx: (q.x - O) / pitch, gy: (q.y - O) / pitch }))
               ropesRef.current.push({ loop, joints }); wake()
+              redoRef.current = []
+              setCanUndo(true); setCanRedo(false)
             }
           }
         }
@@ -385,8 +401,12 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
 
   // actions exposed to the Sidebar
   useImperativeHandle(ref, () => ({
-    clear() { ropesRef.current = []; curRef.current = null; wake() },
-    undo() { ropesRef.current.pop(); wake() },
+    clear() {
+      ropesRef.current = []; redoRef.current = []; curRef.current = null
+      wake(); setCanUndo(false); setCanRedo(false)
+    },
+    undo: doUndo,
+    redo: doRedo,
     exportSVG() {
       const svg = buildSVG(ropesRef.current, cfgRef.current, colRef.current.ink)
       download(new Blob([svg], { type: 'image/svg+xml' }), 'grid.svg')
@@ -405,6 +425,24 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   return (
     <div ref={holderRef} className="canvas-bg" style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
       <div ref={hostRef} style={{ position: 'absolute', inset: 0 }} />
+      <div className="zoombox" style={{ left: 16, right: 'auto' }}>
+        <button
+          className="tool-btn icon-btn" onClick={doUndo} disabled={!canUndo}
+          title="Undo" aria-label="Undo"
+        >
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+          </svg>
+        </button>
+        <button
+          className="tool-btn icon-btn" onClick={doRedo} disabled={!canRedo}
+          title="Redo" aria-label="Redo"
+        >
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 7v6h-6" /><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" />
+          </svg>
+        </button>
+      </div>
       <div className="zoombox">
         <button
           className={'tool-btn icon-btn' + (panTool ? ' active' : '')}

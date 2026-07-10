@@ -5,6 +5,9 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Added
+- **Undo / Redo** floating bar (bottom-left of the canvas, same style as the zoom box) with
+  icon buttons that disable when there's nothing to undo/redo. Undo moved out of the sidebar
+  (which now keeps only **Clear**).
 - **Edit sizes** mode: a sidebar toggle that lets you resize each circle independently.
   Hover a circle to reveal a drag handle on its edge and drag to set its diameter (it grows
   inside its own container, so neighbors don't move). The rope physics and SVG/PNG export
@@ -38,12 +41,15 @@ All notable changes to this project. Newest first.
   canvas, shown as **download-icon** buttons (SVG / PNG), no background on the bar.
 - **Sidebar polish**: bar sliders now animate — a subtle resting state (dimmed track/fill, dark
   label) that fills in on hover, where the light value label fades in; removed the dividers between
-  menu items.
+  menu items. The **Style/Pin** controls are now joined pill segmented controls (light pill with a
+  dark rounded selected segment); checkboxes use a 4px ring; slider values drop the `px` suffix; the
+  help text sticks to the bottom of the sidebar.
+- **Circle size** max raised to **200** (`CELL` container grown to match).
 - **Hide guides** now animates: the pin dots fade in/out instead of snapping.
 - Canvas model: each pin owns a **fixed-size container** (`CELL`). Circle size grows inside its
   container without moving neighbors or resizing the canvas; **spacing** and columns/rows grow
   the canvas so nothing gets clipped.
-- Slider ranges: circle size **35–120**, rope tension **100–200**; tension now maps to spring
+- Slider ranges: circle size **35–200**, rope tension **100–200**; tension now maps to spring
   stiffness.
 - Rope no longer drifts or loses pins when changing spacing/size (fixed elasticity error by
   re-seeding from the original loop instead of continuing from the settled state).

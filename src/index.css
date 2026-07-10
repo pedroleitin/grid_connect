@@ -90,6 +90,19 @@ body { margin: 0; font-family: var(--font-sans); color: var(--c-text); backgroun
   transition: left 0.15s; box-sizing: border-box;
 }
 
+/* segmented control (rocker): light pill with a dark rounded selected segment */
+.seg {
+  display: flex; padding: 3px; gap: 0;
+  background: var(--c-line); border-radius: 13px;
+}
+.seg-opt {
+  flex: 1; padding: 6px 16px; border: none; background: transparent;
+  color: var(--c-text); font-size: 13px; font-weight: 500; line-height: 1.2;
+  border-radius: 10px; cursor: pointer; white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.seg-opt.active { background: var(--c-text); color: var(--c-panel); }
+
 /* menu buttons */
 .btn-menu {
   background: var(--c-btn); border: 1.5px solid var(--c-line-strong); color: var(--c-text);
@@ -171,6 +184,8 @@ canvas { display: block; cursor: crosshair; }
 .tool-btn.icon-btn { width: 34px; padding: 0; }
 .tool-btn svg { display: block; }
 .tool-btn:hover { background: var(--c-hover); }
+.tool-btn:disabled { opacity: 0.35; cursor: default; }
+.tool-btn:disabled:hover { background: var(--c-btn); }
 .tool-btn.active {
   background: var(--c-accent); color: var(--c-accent-ink); font-weight: 600;
 }

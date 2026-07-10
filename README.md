@@ -85,7 +85,8 @@ assets/                    # reference images
 - **Pin** — Circle or Square (only affects the guide; the rope always collides with the circular edge).
 - **Hide guides** — draw without the pin dots showing (animated fade).
 - **Edit sizes** — resize each circle independently by dragging its edge handle.
-- **Undo / Clear** (sidebar) and **Export SVG / PNG** (icon buttons centered at the bottom of the canvas).
+- **Undo / Redo** — floating icon buttons at the bottom-left of the canvas; **Clear** in the sidebar.
+- **Export SVG / PNG** — icon buttons centered at the bottom of the canvas.
 
 ## Export
 

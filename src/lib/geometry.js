@@ -9,7 +9,7 @@ export const PAD = 20;
    never moves neighbors nor resizes the canvas. Only the spacing (gap)
    changes the pitch between containers — and therefore the canvas size,
    so nothing gets clipped. Keep CELL in sync with the circle-size slider max. */
-export const CELL = 120;
+export const CELL = 200;
 
 export function canvasSize(cols, rows, gap) {
   return {
