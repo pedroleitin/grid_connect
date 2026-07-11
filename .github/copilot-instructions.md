@@ -56,13 +56,19 @@ or ignored (Edit sizes). Exports SVG/PNG.
   `cornerRadius` (20–100%) for both the guide rects and the rounded-square collision. Switching
   `style` crossfades the rope opacity (`styleAnimRef`, old+new drawn at `1-t`/`t`); the Corner radius
   slider slides/fades in via `.collapse-row` (avoid Tailwind's `.collapse` = `visibility: collapse`).
-- **Paint mode (`mode='paint'`, `modeRef`):** dragging over pins connects neighbors with metaball
-  **blob** bridges. `paintNodesRef` (Set `"r,c"`) + `paintEdgesRef` (Set of sorted `"ka|kb"` via
-  `edgeKey`); `adjacentCells` (8-way) blocks skipping a cell. `metaball`/`metaballPathD` (paper.js
-  Meta Balls port) build the Bézier bridge; `drawPaint` renders bridges + nodes with the same solid
-  ink so they union — nodes follow the Pin shape (rounded rect for squares). A tap on an existing
-  node (`removeNode`) deletes it + its links; `paintHoverRef` shows the accent hover ring. Undo/redo
-  unified in `histRef`/`redoRef` (`{kind:'rope'|'paint'}`, removals use `inverse`);
-  `buildSVG(ropes, paint, cfg, ink)` and both exports include the blobs. Filled ropes/exports carry a
-  matching `stroke`; the style crossfade uses `easeInOut`.
+- **Paint mode (`mode='paint'`, `modeRef`):** connect neighbors with metaball **blob** bridges by
+  dragging over pins (`paintVisit`) or click-to-click (`paintTap`: click a pin then a neighbor to
+  link + re-arm; click the armed pin again to remove). `paintNodesRef` (Set `"r,c"`) + `paintEdgesRef`
+  (Set of sorted `"ka|kb"` via `edgeKey`); `adjacentCells` (8-way) blocks skipping a cell;
+  `paintSelRef` = armed pin. `metaball(c1,r1,c2,r2,v,handleRate)`/`metaballPathD` (paper.js Meta Balls
+  port) build the Bézier bridge — `v` = **Blob spread** slider (`cfg.blob`), `handleRate` fixed.
+  `drawPaint` renders bridges + nodes with the same solid ink so they union — nodes follow the Pin
+  shape (rounded rect for squares). `removeNode` deletes a node + its links; `paintHoverRef` +
+  `paintAnimRef` ease the pin **fill** toward accent on hover/arm (no ring). Undo/redo unified in
+  `histRef`/`redoRef` (`{kind:'rope'|'paint'}`, removals use `inverse`); `buildSVG(ropes, paint, cfg,
+  ink)` and both exports include the blobs. Filled ropes/exports carry a matching `stroke`; the style
+  crossfade uses `easeInOut` (fast).
+- **Keyboard shortcuts** (App `keydown`, ignores form fields): **M/S/P** toggle Mode/Style/Pin,
+  **H/E** toggle Hide guides/Edit, **C** Clear, **R** Reset, **Ctrl/Cmd+Z** Undo (**Shift** Redo).
+  Labels show a `Kbd` badge (`.kbd`); segmented controls are **140px** with equal-width options.
 - UI language and comments: **English**. Smallest change that respects the existing style.

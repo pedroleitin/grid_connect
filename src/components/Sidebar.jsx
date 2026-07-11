@@ -5,6 +5,19 @@ function Row({ children }) {
   return <div>{children}</div>
 }
 
+/* keyboard-shortcut badge: a lowercase letter in a small rounded square */
+function Kbd({ k }) {
+  return <span className="kbd" aria-hidden="true">{k}</span>
+}
+
+function Label({ children, kbd }) {
+  return (
+    <span className="text-sm inline-flex items-center" style={{ color: 'var(--c-text)', opacity: 0.5 }}>
+      {children}{kbd ? <Kbd k={kbd} /> : null}
+    </span>
+  )
+}
+
 /* bar slider ported from DRAW_GRID: label + value inside a tall pill whose
    dark fill shows the value. The light (clipped) copy of the text must be as
    wide as the whole track so it stays aligned with the dark copy. */
@@ -57,11 +70,11 @@ function Slider({ label, min, max, value, suffix = '', onChange }) {
   )
 }
 
-function Checkbox({ label, checked, onChange }) {
+function Checkbox({ label, checked, onChange, kbd }) {
   return (
     <Row>
       <div className="px-5 flex items-center justify-between py-3">
-        <span className="text-sm" style={{ color: 'var(--c-text)', opacity: 0.5 }}>{label}</span>
+        <Label kbd={kbd}>{label}</Label>
         <button role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className="toggle-switch">
           <span
             className="toggle-thumb"
@@ -77,7 +90,7 @@ function Checkbox({ label, checked, onChange }) {
   )
 }
 
-function Segmented({ label, options, value, onChange }) {
+function Segmented({ label, options, value, onChange, kbd }) {
   const toggle = () => {
     const other = options.find((o) => o.value !== value)
     if (other) onChange(other.value)
@@ -85,7 +98,7 @@ function Segmented({ label, options, value, onChange }) {
   return (
     <Row>
       <div className="px-5 py-3 flex items-center justify-between gap-3">
-        <span className="text-sm" style={{ color: 'var(--c-text)', opacity: 0.5 }}>{label}</span>
+        <Label kbd={kbd}>{label}</Label>
         <div className="seg">
           {options.map((o) => (
             <button
@@ -105,7 +118,7 @@ function Segmented({ label, options, value, onChange }) {
 export default function Sidebar({
   cols, setCols, rows, setRows, cellSize, setCellSize, gap, setGap,
   tension, setTension, mode, setMode, style, setStyle, shape, setShape,
-  cornerRadius, setCornerRadius,
+  cornerRadius, setCornerRadius, blob, setBlob,
   hideGuides, setHideGuides,
   editMode, setEditMode,
   onClear, onResetCircles,
@@ -129,17 +142,22 @@ export default function Sidebar({
             <Slider label="Rope tension" min={100} max={200} value={tension} onChange={setTension} />
           </div>
         </div>
+        <div className={`collapse-row${mode === 'paint' ? ' collapse-row--open' : ''}`}>
+          <div>
+            <Slider label="Blob spread" min={20} max={90} value={blob} suffix="%" onChange={setBlob} />
+          </div>
+        </div>
 
         <Segmented
-          label="Mode" value={mode} onChange={setMode}
+          label="Mode" value={mode} onChange={setMode} kbd="m"
           options={[{ value: 'draw', label: 'Draw' }, { value: 'paint', label: 'Paint' }]}
         />
         <Segmented
-          label="Style" value={style} onChange={setStyle}
+          label="Style" value={style} onChange={setStyle} kbd="s"
           options={[{ value: 'fill', label: 'Filled' }, { value: 'stroke', label: 'Outline' }]}
         />
         <Segmented
-          label="Pin" value={shape} onChange={setShape}
+          label="Pin" value={shape} onChange={setShape} kbd="p"
           options={[{ value: 'circle', label: 'Circle' }, { value: 'square', label: 'Square' }]}
         />
         <div className={`collapse-row${shape === 'square' ? ' collapse-row--open' : ''}`}>
@@ -147,8 +165,8 @@ export default function Sidebar({
             <Slider label="Corner radius" min={20} max={100} value={cornerRadius} suffix="%" onChange={setCornerRadius} />
           </div>
         </div>
-        <Checkbox label="Hide guides" checked={hideGuides} onChange={setHideGuides} />
-        <Checkbox label="Edit sizes" checked={editMode} onChange={setEditMode} />
+        <Checkbox label="Hide guides" checked={hideGuides} onChange={setHideGuides} kbd="h" />
+        <Checkbox label="Edit sizes" checked={editMode} onChange={setEditMode} kbd="e" />
 
         <p className="px-5 py-3 mt-auto text-[11px] leading-relaxed" style={{ color: 'var(--c-text)', opacity: 0.5 }}>
           Draw a loop anywhere on the canvas around the circles you want to wrap — an elastic
@@ -159,8 +177,8 @@ export default function Sidebar({
 
       {/* action buttons pinned to the bottom */}
       <div className="p-4 divider border-t border-[#d7d2c7]/25 flex gap-2">
-        <button className="btn-menu flex-1 py-2 text-[13px] font-medium" onClick={onResetCircles}>Reset</button>
-        <button className="btn-menu flex-1 py-2 text-[13px] font-medium" onClick={onClear}>Clear</button>
+        <button className="btn-menu flex-1 py-2 text-[13px] font-medium inline-flex items-center justify-center" onClick={onResetCircles}>Reset<Kbd k="r" /></button>
+        <button className="btn-menu flex-1 py-2 text-[13px] font-medium inline-flex items-center justify-center" onClick={onClear}>Clear<Kbd k="c" /></button>
       </div>
     </div>
   )

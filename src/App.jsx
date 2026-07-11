@@ -11,6 +11,7 @@ export default function App() {
   const [style, setStyle] = useState('fill')     // 'fill' | 'stroke'
   const [shape, setShape] = useState('circle')   // 'circle' | 'square'
   const [cornerRadius, setCornerRadius] = useState(36) // square corner radius (% of half-size)
+  const [blob, setBlob] = useState(50)          // paint connection spread (metaball v, %)
   const [hideGuides, setHideGuides] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
@@ -20,6 +21,32 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
   }, [darkMode])
+
+  // keyboard shortcuts (ignored while typing in a field)
+  useEffect(() => {
+    const onKey = (e) => {
+      const t = e.target
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) canvasApi.current?.redo(); else canvasApi.current?.undo()
+        return
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      switch (e.key.toLowerCase()) {
+        case 'm': setMode((v) => (v === 'draw' ? 'paint' : 'draw')); break
+        case 's': setStyle((v) => (v === 'fill' ? 'stroke' : 'fill')); break
+        case 'p': setShape((v) => (v === 'circle' ? 'square' : 'circle')); break
+        case 'h': setHideGuides((v) => !v); break
+        case 'e': setEditMode((v) => !v); break
+        case 'c': canvasApi.current?.clear(); break
+        case 'r': canvasApi.current?.resetCircles(); break
+        default: return
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   return (
     <div className="bg-base" style={{ height: '100dvh', overflow: 'hidden' }}>
@@ -33,6 +60,7 @@ export default function App() {
         style={style} setStyle={setStyle}
         shape={shape} setShape={setShape}
         cornerRadius={cornerRadius} setCornerRadius={setCornerRadius}
+        blob={blob} setBlob={setBlob}
         hideGuides={hideGuides} setHideGuides={setHideGuides}
         editMode={editMode} setEditMode={setEditMode}
         onClear={() => canvasApi.current?.clear()}
@@ -62,7 +90,7 @@ export default function App() {
           ref={canvasApi}
           cols={cols} rows={rows} cellSize={cellSize} gap={gap}
           shape={shape} tension={tension} style={style}
-          cornerRadius={cornerRadius} mode={mode}
+          cornerRadius={cornerRadius} mode={mode} blob={blob}
           hideGuides={hideGuides} editMode={editMode} theme={darkMode ? 'dark' : 'light'}
           leftInset={330}
         />

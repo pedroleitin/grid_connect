@@ -265,12 +265,13 @@ export function buildSVG(ropes, paint, cfg, ink) {
   if (paint && paint.nodes && paint.nodes.size) {
     const square = cfg.shape === 'square';
     const cr01 = (cfg.cornerRadius ?? 36) / 100;
+    const v = (cfg.blob ?? 50) / 100;
     for (const key of paint.edges) {
       const [ka, kb] = key.split('|');
       const [ra, ca] = ka.split(',').map(Number);
       const [rb, cb] = kb.split(',').map(Number);
       const m = metaball(cellCenter(ra, ca, cfg), sizeOf(cfg, ra, ca) / 2,
-                         cellCenter(rb, cb, cfg), sizeOf(cfg, rb, cb) / 2);
+                         cellCenter(rb, cb, cfg), sizeOf(cfg, rb, cb) / 2, v);
       if (m) body += `<path d="${metaballPathD(m)}" fill="${ink}"/>`;
     }
     for (const key of paint.nodes) {

@@ -96,14 +96,14 @@ body { margin: 0; font-family: var(--font-sans); color: var(--c-text); backgroun
 
 /* segmented control (rocker): light pill with a dark rounded selected segment */
 .seg {
-  display: flex; padding: 3px; gap: 0;
+  display: flex; padding: 3px; gap: 0; width: 140px;
   background: color-mix(in srgb, var(--c-line) 20%, transparent); border-radius: 10px;
   outline: 3px solid color-mix(in srgb, var(--c-line) 20%, transparent);
   transition: background-color 0.2s ease, outline-color 0.2s ease;
 }
 .seg:hover { background: #ffc800; outline-color: #ffc800; }
 .seg-opt {
-  flex: 1; padding: 6px 16px; border: none; background: transparent;
+  flex: 1 1 0; width: 0; padding: 6px 0; border: none; background: transparent; text-align: center;
   color: var(--c-text); font-size: 13px; font-weight: 500; line-height: 1.2;
   border-radius: 7px; cursor: pointer; white-space: nowrap;
   transition: background-color 0.15s ease, color 0.15s ease;
@@ -112,6 +112,16 @@ body { margin: 0; font-family: var(--font-sans); color: var(--c-text); backgroun
 /* dark mode: keep the yellow but flip the segments dark for reading contrast */
 [data-theme="dark"] .seg:hover .seg-opt { color: var(--c-panel); }
 [data-theme="dark"] .seg:hover .seg-opt.active { background: var(--c-panel); color: #ffc800; }
+
+/* keyboard shortcut badge: lowercase letter in a small rounded square (font-height) */
+.kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.35em; height: 1.35em; margin-left: 6px; padding: 0;
+  font-family: var(--font-mono, monospace); font-size: 0.82em; font-weight: 600; line-height: 1;
+  color: var(--c-text); border: 1px solid var(--c-line-strong); border-radius: 4px;
+  background: color-mix(in srgb, var(--c-line) 18%, transparent);
+  opacity: 0.75; text-transform: lowercase;
+}
 
 /* menu buttons */
 .btn-menu {

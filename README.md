@@ -88,11 +88,14 @@ assets/                    # reference images
 - **Spacing** — gap between containers (grows the canvas so nothing is clipped).
 - **Rope tension** — settle tightness (100 = loose/round wrap, 200 = tight/glued to the circles);
   shown only in Draw mode.
-- **Mode** — **Draw** (the elastic rope) or **Paint**. In Paint mode you drag the cursor across
-  neighboring pins to connect them with smooth **metaball blob** bridges (8-way adjacency, never
-  skipping a cell); nodes and bridges share the ink fill so they read as one shape. Nodes follow the
-  Pin shape (rounded squares in Square mode), the hovered pin highlights in yellow, and tapping an
-  already-painted pin removes it and its links.
+- **Mode** — **Draw** (the elastic rope) or **Paint**. In Paint mode you connect neighboring pins
+  with smooth **metaball blob** bridges (8-way adjacency, never skipping a cell): drag the cursor
+  across pins, or click one pin then click a neighbor (chains from the last). Nodes and bridges share
+  the ink fill so they read as one shape, follow the Pin shape (rounded squares in Square mode), the
+  hovered pin's fill tints yellow (armed pin fully accent), and clicking an armed pin again removes it
+  and its links.
+- **Blob spread** (Paint only) — tunes the metaball connection neck (low = thin, high = fat bridge);
+  it is the `v` (contact-point spread) parameter, the more visible of the two metaball knobs.
 - **Style** — Filled (blob) or Outline (line); switching crossfades the rope's opacity.
 - **Pin** — Circle or Square. The rope collides with the chosen shape (a circle, or a
   rounded square with flat edges), so the wrap follows it.
@@ -102,6 +105,8 @@ assets/                    # reference images
 - **Hide guides** — draw without the pin dots showing (animated fade).
 - **Edit sizes** — resize each circle independently by dragging its edge handle.
 - **Undo / Redo** — floating icon buttons at the bottom-left of the canvas; **Clear** in the sidebar.
+- **Keyboard shortcuts** (badges shown next to each label): **M** Mode, **S** Style, **P** Pin,
+  **H** Hide guides, **E** Edit sizes, **C** Clear, **R** Reset, **Ctrl/Cmd+Z** Undo (**Shift** Redo).
 - **Export SVG / PNG** — icon buttons centered at the bottom of the canvas.
 
 ## Export

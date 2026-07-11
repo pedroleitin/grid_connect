@@ -19,6 +19,9 @@
   cell). Nodes and links share the ink fill so they read as one connected shape; included in
   the SVG/PNG export. Unified undo/redo covers both ropes and blobs.
 - [x] **Connect** mode (metaball between neighbors) — folded into Paint mode above.
+- [x] **Paint refinements**: click-to-click connect (click a pin, then a neighbor) + chaining,
+  click-again-to-remove, eased fill-tint hover, and a **Blob spread** slider (metaball `v`).
+- [x] **Keyboard shortcuts** (M/S/P/H/E/C/R, Ctrl/Cmd+Z) with on-screen `Kbd` badges.
 - [ ] Smooth/simplify the stroke points for even smaller SVGs.
 - [x] Light/dark theme toggle (`[data-theme]` palette mapped to `@theme` tokens).
 - [x] Full-canvas drawing with pan/zoom (scroll to pan, Ctrl/Cmd+scroll or pinch to zoom,

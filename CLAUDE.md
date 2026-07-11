@@ -72,16 +72,24 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
   rect corners and the rounded-square collision. Switching `style` crossfades the rope opacity
   (`styleAnimRef`: draws the old + new style with `1-t`/`t` alpha as `t` ramps 0→1); the Corner
   radius slider itself slides/fades via the `.collapse-row` CSS class (not Tailwind's `.collapse`).
-- **Paint mode (`mode='paint'`):** `modeRef` gates pointer handling. Dragging over pins connects
-  neighbors with **metaball blob** bridges — `paintNodesRef` (Set of `"r,c"`) + `paintEdgesRef` (Set
-  of sorted `"ka|kb"` from `edgeKey`); `adjacentCells` (8-way) gates links so you can't skip a cell.
-  `metaball()`/`metaballPathD()` in `geometry.js` (paper.js Meta Balls port) build the Bézier bridge;
-  `drawPaint()` renders bridges (`bezierVertex`) + nodes with the same solid ink so they union — nodes
-  follow the Pin shape (rounded `rect` for squares). A plain tap on an existing node calls `removeNode`
-  (deletes it + its links); `paintHoverRef` drives the accent (yellow) hover ring on the pin under the
-  cursor. Undo/redo is unified in `histRef`/`redoRef` as actions `{kind:'rope'|'paint', ...}` (paint
-  removals use an `inverse` flag); `buildSVG` takes `(ropes, paint, cfg, ink)` and both exports include
-  the blobs. Filled ropes/exports carry a matching `stroke`; the style crossfade uses `easeInOut`.
+- **Paint mode (`mode='paint'`):** `modeRef` gates pointer handling. Connect neighbors with
+  **metaball blob** bridges — by dragging across pins (`paintVisit`) or by click-to-click
+  (`paintTap`: click one pin, then a neighbor to link + re-arm for chaining; click the armed pin
+  again to remove it). `paintNodesRef` (Set of `"r,c"`) + `paintEdgesRef` (Set of sorted `"ka|kb"`
+  from `edgeKey`); `adjacentCells` (8-way) gates links so you can't skip a cell; `paintSelRef` holds
+  the armed pin. `metaball(c1,r1,c2,r2,v,handleRate)`/`metaballPathD()` in `geometry.js` (paper.js
+  Meta Balls port) build the Bézier bridge — `v` (contact-point spread) is exposed as the **Blob
+  spread** slider (`cfg.blob`), `handleRate` is fixed. `drawPaint()` renders bridges (`bezierVertex`)
+  + nodes with the same solid ink so they union — nodes follow the Pin shape (rounded `rect` for
+  squares). `removeNode` deletes a node + its links; `paintHoverRef` + `paintAnimRef` ease the pin's
+  **fill** toward accent on hover/arm (no ring). Undo/redo is unified in `histRef`/`redoRef` as
+  actions `{kind:'rope'|'paint', ...}` (paint removals use an `inverse` flag); `buildSVG` takes
+  `(ropes, paint, cfg, ink)` and both exports include the blobs. Filled ropes/exports carry a
+  matching `stroke`; the style crossfade uses `easeInOut` (fast).
+- **Keyboard shortcuts** (App-level `keydown` effect, ignores form fields): **M** Mode, **S** Style,
+  **P** Pin, **H** Hide guides, **E** Edit sizes, **C** Clear, **R** Reset, **Ctrl/Cmd+Z** Undo
+  (**Shift** Redo). Each label shows a `Kbd` badge (`.kbd` in `index.css`); segmented controls are a
+  fixed **140px** with equal-width options.
 - **StrictMode:** the mount effect creates/cleans up the p5 (`p5Ref.current.remove()`). Do not create
   multiple instances.
 

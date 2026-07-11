@@ -5,6 +5,15 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Added
+- **Keyboard shortcuts** with on-screen badges (a lowercase letter in a small rounded square next to
+  each label): **M** Mode, **S** Style, **P** Pin, **H** Hide guides, **E** Edit sizes, **C** Clear,
+  **R** Reset, **Ctrl/Cmd+Z** Undo (**Shift** to Redo).
+- **Blob spread** slider (Paint mode only): tunes the metaball connection neck — one of the two
+  metaball parameters (`v`, the contact-point spread; the other is the fixed handle length). Low =
+  thin neck, high = fat bridge.
+- **Click-to-connect** in Paint mode: click one pin then click any of its 8 neighbors to link them
+  (chains from the last pin); dragging across pins still works. Clicking an armed pin again removes it
+  and its links.
 - **Paint / Connect mode**: a new **Mode → Draw/Paint** toggle. **Draw** is the existing elastic
   rope; **Paint** interactively connects adjacent pins with smooth **metaball blob** bridges — just
   drag the cursor across neighboring pins and they link up (8-way adjacency, never skipping a cell).
@@ -73,6 +82,9 @@ All notable changes to this project. Newest first.
   *(loop, spacing, size, tension)* — reverting values reproduces the identical shape.
 
 ### Changed
+- Paint hover now **tints the pin's fill** toward accent (eased) instead of drawing a ring; the armed
+  pin is fully accent. Segmented controls (Mode/Style/Pin) are a fixed **140px** with equal-width
+  options. The Filled/Outline crossfade is **faster**.
 - **Renamed** to **G_connect** (sidebar title and page title); dropped the "freehand" tag.
 - **Zoom + undo/redo buttons** now fill **yellow** (`#ffc800`) on hover, matching the accent used
   by the toggles and segmented controls.
