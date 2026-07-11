@@ -14,11 +14,11 @@ or ignored (Edit sizes). Exports SVG/PNG.
 
 ## Structure
 
-- `src/App.jsx` — central state: `cols, rows, cellSize, gap, tension, style, shape, cornerRadius`,
+- `src/App.jsx` — central state: `cols, rows, cellSize, gap, tension, mode, style, shape, cornerRadius`,
   plus `hideGuides`, `editMode`, `darkMode`.
 - `src/components/Sidebar.jsx` — controls (`Slider`, `Segmented`, `Checkbox` components).
 - `src/components/GridCanvas.jsx` — p5 in `useEffect`; pan/zoom view transform; rope physics;
-  per-circle sizing (Edit mode); export via `ref`.
+  per-circle sizing (Edit mode); Paint-mode metaball blobs; export via `ref`.
 - `src/lib/geometry.js` — geometry + `buildSVG` (single source, used by render and export).
 
 ## Conventions / rules
@@ -56,4 +56,10 @@ or ignored (Edit sizes). Exports SVG/PNG.
   `cornerRadius` (20–100%) for both the guide rects and the rounded-square collision. Switching
   `style` crossfades the rope opacity (`styleAnimRef`, old+new drawn at `1-t`/`t`); the Corner radius
   slider slides/fades in via `.collapse-row` (avoid Tailwind's `.collapse` = `visibility: collapse`).
+- **Paint mode (`mode='paint'`, `modeRef`):** dragging over pins connects neighbors with metaball
+  **blob** bridges. `paintNodesRef` (Set `"r,c"`) + `paintEdgesRef` (Set of sorted `"ka|kb"` via
+  `edgeKey`); `adjacentCells` (8-way) blocks skipping a cell. `metaball`/`metaballPathD` (paper.js
+  Meta Balls port) build the Bézier bridge; `drawPaint` renders bridges + node circles with the same
+  solid ink so they union. Undo/redo unified in `histRef`/`redoRef` (`{kind:'rope'|'paint'}`);
+  `buildSVG(ropes, paint, cfg, ink)` and both exports include the blobs.
 - UI language and comments: **English**. Smallest change that respects the existing style.

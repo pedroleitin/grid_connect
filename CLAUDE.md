@@ -17,8 +17,8 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
 
 ## Architecture
 
-- `src/App.jsx` — state owner: `cols, rows, cellSize, gap, tension, style, shape, cornerRadius`, plus
-  `hideGuides`, `editMode`, `darkMode`. Passes everything to `Sidebar` and `GridCanvas`; actions
+- `src/App.jsx` — state owner: `cols, rows, cellSize, gap, tension, mode, style, shape, cornerRadius`,
+  plus `hideGuides`, `editMode`, `darkMode`. Passes everything to `Sidebar` and `GridCanvas`; actions
   (undo/clear) via `ref`; **Export SVG/PNG** is a floating bar centered at the bottom of the canvas.
 - `src/components/GridCanvas.jsx` — p5 as an instance inside `useEffect`.
   - Current config mirrored in `cfgRef` (the p5 loop reads `cfgRef.current`, not props).
@@ -72,6 +72,13 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
   rect corners and the rounded-square collision. Switching `style` crossfades the rope opacity
   (`styleAnimRef`: draws the old + new style with `1-t`/`t` alpha as `t` ramps 0→1); the Corner
   radius slider itself slides/fades via the `.collapse-row` CSS class (not Tailwind's `.collapse`).
+- **Paint mode (`mode='paint'`):** `modeRef` gates pointer handling. Dragging over pins connects
+  neighbors with **metaball blob** bridges — `paintNodesRef` (Set of `"r,c"`) + `paintEdgesRef` (Set
+  of sorted `"ka|kb"` from `edgeKey`); `adjacentCells` (8-way) gates links so you can't skip a cell.
+  `metaball()`/`metaballPathD()` in `geometry.js` (paper.js Meta Balls port) build the Bézier bridge;
+  `drawPaint()` renders bridges (`bezierVertex`) + node circles with the same solid ink so they union.
+  Undo/redo is unified in `histRef`/`redoRef` as actions `{kind:'rope'|'paint', ...}`; `buildSVG` now
+  takes `(ropes, paint, cfg, ink)` and both exports include the blobs.
 - **StrictMode:** the mount effect creates/cleans up the p5 (`p5Ref.current.remove()`). Do not create
   multiple instances.
 

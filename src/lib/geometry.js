@@ -190,8 +190,68 @@ export function splinePathD(pts, closed) {
   return d.trim();
 }
 
-/* Clean SVG: one closed Catmull-Rom <path> per rope (filled or outlined) */
-export function buildSVG(ropes, cfg, ink) {
+/* ---- Metaball connection (Paint mode) ---------------------------------------
+   Smooth "blob" bridge between two circles built from cubic Béziers tangent to
+   each circle. Ported from the paper.js Meta Balls example (SATO Hiroyuki).
+   Returns the four contact points + Bézier handles, or null when no bridge
+   should be drawn (one circle contains the other, or zero radius). */
+export function metaball(c1, r1, c2, r2, v = 0.5, handleRate = 2.4) {
+  const HALF_PI = Math.PI / 2;
+  const dx = c2.x - c1.x, dy = c2.y - c1.y;
+  const d = Math.hypot(dx, dy);
+  if (r1 === 0 || r2 === 0 || d === 0 || d <= Math.abs(r1 - r2)) return null;
+
+  let u1, u2;
+  if (d < r1 + r2) {                       // circles overlap
+    u1 = Math.acos((r1 * r1 + d * d - r2 * r2) / (2 * r1 * d));
+    u2 = Math.acos((r2 * r2 + d * d - r1 * r1) / (2 * r2 * d));
+  } else { u1 = 0; u2 = 0; }
+
+  const angle1 = Math.atan2(dy, dx);
+  const angle2 = Math.acos((r1 - r2) / d);
+  const a1a = angle1 + u1 + (angle2 - u1) * v;
+  const a1b = angle1 - u1 - (angle2 - u1) * v;
+  const a2a = angle1 + Math.PI - u2 - (Math.PI - u2 - angle2) * v;
+  const a2b = angle1 - Math.PI + u2 + (Math.PI - u2 - angle2) * v;
+
+  const gv = (ang, len) => ({ x: Math.cos(ang) * len, y: Math.sin(ang) * len });
+  const at = (c, ang, len) => ({ x: c.x + gv(ang, len).x, y: c.y + gv(ang, len).y });
+  const p1a = at(c1, a1a, r1), p1b = at(c1, a1b, r1);
+  const p2a = at(c2, a2a, r2), p2b = at(c2, a2b, r2);
+
+  // handle length from the span between both ends of the bridge
+  const total = r1 + r2;
+  let d2 = Math.min(v * handleRate, Math.hypot(p1a.x - p2a.x, p1a.y - p2a.y) / total);
+  d2 *= Math.min(1, (d * 2) / total);
+  const h1 = r1 * d2, h2 = r2 * d2;
+
+  return {
+    p1a, p1b, p2a, p2b,
+    ho0: at(p1a, a1a - HALF_PI, h1),   // handleOut of p1a
+    hi1: at(p2a, a2a + HALF_PI, h2),   // handleIn  of p2a
+    ho2: at(p2b, a2b - HALF_PI, h2),   // handleOut of p2b
+    hi3: at(p1b, a1b + HALF_PI, h1),   // handleIn  of p1b
+  };
+}
+
+/* SVG path for a metaball bridge (the flat ends sit inside the node circles) */
+export function metaballPathD(m) {
+  return `M ${R2(m.p1a.x)} ${R2(m.p1a.y)} `
+    + `C ${R2(m.ho0.x)} ${R2(m.ho0.y)} ${R2(m.hi1.x)} ${R2(m.hi1.y)} ${R2(m.p2a.x)} ${R2(m.p2a.y)} `
+    + `L ${R2(m.p2b.x)} ${R2(m.p2b.y)} `
+    + `C ${R2(m.ho2.x)} ${R2(m.ho2.y)} ${R2(m.hi3.x)} ${R2(m.hi3.y)} ${R2(m.p1b.x)} ${R2(m.p1b.y)} Z`;
+}
+
+/* Two cells are connectable only if they are immediate neighbors (8-way),
+   never skipping a cell. */
+export function adjacentCells(a, b) {
+  const dr = Math.abs(a.r - b.r), dc = Math.abs(a.c - b.c);
+  return dr <= 1 && dc <= 1 && !(dr === 0 && dc === 0);
+}
+
+/* Clean SVG: one closed Catmull-Rom <path> per rope (filled or outlined),
+   plus filled circles + metaball bridges for the painted blobs. */
+export function buildSVG(ropes, paint, cfg, ink) {
   const { w, h } = canvasSize(cfg.cols, cfg.rows, cfg.gap);
   let body = '';
   for (const rope of ropes) {
@@ -201,6 +261,21 @@ export function buildSVG(ropes, cfg, ink) {
     body += cfg.style === 'fill'
       ? `<path d="${d}" fill="${ink}"/>`
       : `<path d="${d}" fill="none" stroke="${ink}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }
+  if (paint && paint.nodes && paint.nodes.size) {
+    for (const key of paint.edges) {
+      const [ka, kb] = key.split('|');
+      const [ra, ca] = ka.split(',').map(Number);
+      const [rb, cb] = kb.split(',').map(Number);
+      const m = metaball(cellCenter(ra, ca, cfg), sizeOf(cfg, ra, ca) / 2,
+                         cellCenter(rb, cb, cfg), sizeOf(cfg, rb, cb) / 2);
+      if (m) body += `<path d="${metaballPathD(m)}" fill="${ink}"/>`;
+    }
+    for (const key of paint.nodes) {
+      const [r, c] = key.split(',').map(Number);
+      const ct = cellCenter(r, c, cfg);
+      body += `<circle cx="${R2(ct.x)}" cy="${R2(ct.y)}" r="${R2(sizeOf(cfg, r, c) / 2)}" fill="${ink}"/>`;
+    }
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${R2(w)}" height="${R2(h)}" viewBox="0 0 ${R2(w)} ${R2(h)}">\n${body}\n</svg>`;
 }

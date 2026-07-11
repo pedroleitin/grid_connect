@@ -5,6 +5,12 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Added
+- **Paint / Connect mode**: a new **Mode → Draw/Paint** toggle. **Draw** is the existing elastic
+  rope; **Paint** interactively connects adjacent pins with smooth **metaball blob** bridges — just
+  drag the cursor across neighboring pins and they link up (8-way adjacency, never skipping a cell).
+  Nodes and bridges share the same solid ink fill so they read as one connected shape, and blobs are
+  included in the SVG (one `<path>` per bridge + `<circle>` per node) and PNG export. Undo/redo is now
+  unified across ropes and blobs. (Metaball geometry ported from the paper.js Meta Balls example.)
 - **Animated style switch**: toggling **Style → Filled/Outline** now crossfades the rope's
   opacity (the old style fades out while the new one fades in) instead of switching instantly.
 - **Animated Corner radius reveal**: the **Corner radius** slider now slides/fades in and out

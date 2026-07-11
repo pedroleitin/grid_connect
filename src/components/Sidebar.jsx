@@ -104,7 +104,7 @@ function Segmented({ label, options, value, onChange }) {
 
 export default function Sidebar({
   cols, setCols, rows, setRows, cellSize, setCellSize, gap, setGap,
-  tension, setTension, style, setStyle, shape, setShape,
+  tension, setTension, mode, setMode, style, setStyle, shape, setShape,
   cornerRadius, setCornerRadius,
   hideGuides, setHideGuides,
   editMode, setEditMode,
@@ -124,8 +124,16 @@ export default function Sidebar({
         <Slider label="Rows" min={1} max={20} value={rows} onChange={setRows} />
         <Slider label="Size" min={35} max={200} value={cellSize} onChange={setCellSize} />
         <Slider label="Spacing" min={0} max={80} value={gap} onChange={setGap} />
-        <Slider label="Rope tension" min={100} max={200} value={tension} onChange={setTension} />
+        <div className={`collapse-row${mode === 'draw' ? ' collapse-row--open' : ''}`}>
+          <div>
+            <Slider label="Rope tension" min={100} max={200} value={tension} onChange={setTension} />
+          </div>
+        </div>
 
+        <Segmented
+          label="Mode" value={mode} onChange={setMode}
+          options={[{ value: 'draw', label: 'Draw' }, { value: 'paint', label: 'Paint' }]}
+        />
         <Segmented
           label="Style" value={style} onChange={setStyle}
           options={[{ value: 'fill', label: 'Filled' }, { value: 'stroke', label: 'Outline' }]}

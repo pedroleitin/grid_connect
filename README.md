@@ -86,7 +86,11 @@ assets/                    # reference images
 - **Columns / Rows** — grid size (grows the canvas).
 - **Size** — pin diameter; grows within its container without moving neighbors or resizing the canvas.
 - **Spacing** — gap between containers (grows the canvas so nothing is clipped).
-- **Rope tension** — settle tightness (100 = loose/round wrap, 200 = tight/glued to the circles).
+- **Rope tension** — settle tightness (100 = loose/round wrap, 200 = tight/glued to the circles);
+  shown only in Draw mode.
+- **Mode** — **Draw** (the elastic rope) or **Paint**. In Paint mode you drag the cursor across
+  neighboring pins to connect them with smooth **metaball blob** bridges (8-way adjacency, never
+  skipping a cell); nodes and bridges share the ink fill so they read as one shape.
 - **Style** — Filled (blob) or Outline (line); switching crossfades the rope's opacity.
 - **Pin** — Circle or Square. The rope collides with the chosen shape (a circle, or a
   rounded square with flat edges), so the wrap follows it.
@@ -100,7 +104,8 @@ assets/                    # reference images
 
 ## Export
 
-- **SVG:** one Catmull-Rom `<path>` per rope (filled or stroked). No guide circles,
+- **SVG:** one Catmull-Rom `<path>` per rope (filled or stroked), plus one `<path>` per metaball
+  bridge and a `<circle>` per painted node. No guide circles,
   no filters — clean vector.
 - **PNG:** rendered at 2x, transparent background.
 

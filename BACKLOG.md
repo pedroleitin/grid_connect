@@ -14,8 +14,11 @@
 - [x] **Ignore** circles: in Edit mode, click the center **X** of a pin to mark it ignored
   (reddish); ignored pins are skipped by the physics so the rope passes through them.
 - [x] **Hide guides** toggle (draw without the pin dots showing).
-- [ ] **Paint** mode: paint over pins to grow metaball **blobs**.
-- [ ] **Connect** mode (metaball between neighbors) as an optional tool.
+- [x] **Paint** mode (Draw/Paint toggle): interactively connect adjacent pins with smooth
+  metaball **blob** bridges by dragging the cursor across neighbors (8-way, never skipping a
+  cell). Nodes and links share the ink fill so they read as one connected shape; included in
+  the SVG/PNG export. Unified undo/redo covers both ropes and blobs.
+- [x] **Connect** mode (metaball between neighbors) — folded into Paint mode above.
 - [ ] Smooth/simplify the stroke points for even smaller SVGs.
 - [x] Light/dark theme toggle (`[data-theme]` palette mapped to `@theme` tokens).
 - [x] Full-canvas drawing with pan/zoom (scroll to pan, Ctrl/Cmd+scroll or pinch to zoom,

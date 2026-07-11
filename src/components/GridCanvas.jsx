@@ -3,6 +3,7 @@ import p5 from 'p5'
 import {
   canvasSize, cellCenter, pins, seedJoints, stepRope,
   splineSegments, buildSVG, calmFor, CELL, PAD, sizeOf,
+  metaball, adjacentCells,
 } from '../lib/geometry'
 
 /* render a rope: closed Catmull-Rom spline through its physics joints */
@@ -17,6 +18,33 @@ function drawRope(g, joints, style, COL, alpha = 1) {
   g.beginShape(); g.vertex(start.x, start.y)
   for (const s of segs) g.bezierVertex(s.c1x, s.c1y, s.c2x, s.c2y, s.x, s.y)
   g.endShape(g.CLOSE)
+}
+
+/* render painted blobs: filled node circles + metaball bezier bridges (same
+   solid fill, so overlaps read as one connected shape) */
+function drawPaint(g, nodes, edges, cfg, COL, alpha = 1) {
+  if (!nodes || nodes.size === 0) return
+  const ink = g.color(COL.ink); ink.setAlpha(255 * alpha)
+  g.noStroke(); g.fill(ink)
+  for (const key of edges) {
+    const [ka, kb] = key.split('|')
+    const [ra, ca] = ka.split(',').map(Number)
+    const [rb, cb] = kb.split(',').map(Number)
+    const m = metaball(cellCenter(ra, ca, cfg), sizeOf(cfg, ra, ca) / 2,
+                       cellCenter(rb, cb, cfg), sizeOf(cfg, rb, cb) / 2)
+    if (!m) continue
+    g.beginShape()
+    g.vertex(m.p1a.x, m.p1a.y)
+    g.bezierVertex(m.ho0.x, m.ho0.y, m.hi1.x, m.hi1.y, m.p2a.x, m.p2a.y)
+    g.vertex(m.p2b.x, m.p2b.y)
+    g.bezierVertex(m.ho2.x, m.ho2.y, m.hi3.x, m.hi3.y, m.p1b.x, m.p1b.y)
+    g.endShape(g.CLOSE)
+  }
+  for (const key of nodes) {
+    const [r, c] = key.split(',').map(Number)
+    const ct = cellCenter(r, c, cfg)
+    g.circle(ct.x, ct.y, sizeOf(cfg, r, c))
+  }
 }
 
 function download(blob, filename) {
@@ -43,7 +71,13 @@ const MIN_DIAM = 8            // per-circle size limits
 const MAX_DIAM = 300          // edit mode lets a circle grow beyond its container
 const clampDiam = (d) => Math.max(MIN_DIAM, Math.min(MAX_DIAM, d))
 
-const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, hideGuides, editMode, theme, leftInset = 0 }, ref) {
+// canonical key for an undirected paint link between two cells
+const edgeKey = (a, b) => {
+  const ka = a.r + ',' + a.c, kb = b.r + ',' + b.c
+  return ka < kb ? ka + '|' + kb : kb + '|' + ka
+}
+
+const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, hideGuides, editMode, theme, leftInset = 0 }, ref) {
   const holderRef = useRef(null)   // p5 host container (pans/zooms)
   const bgRef = useRef(null)       // full-page dotted background (single seamless layer)
   const insetRef = useRef(leftInset) // left area hidden by the sidebar (for centering)
@@ -53,9 +87,14 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const ignoredRef = useRef(new Set())  // ignored cells ("r,c"): no drawing interaction
   const cfgRef = useRef({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, hideGuides, sizes: sizesRef.current, ignored: ignoredRef.current })
   const ropesRef = useRef([])       // physics ropes: { loop, joints }
-  const redoRef = useRef([])        // undone ropes, for redo
+  const paintNodesRef = useRef(new Set())  // painted cells "r,c"
+  const paintEdgesRef = useRef(new Set())  // painted links: sorted "ka|kb"
+  const paintDragRef = useRef(null)        // in-progress paint drag state
+  const histRef = useRef([])        // unified undo stack: { kind, ... }
+  const redoRef = useRef([])        // undone actions, for redo
   const curRef = useRef(null)       // raw stroke points (world coords) while drawing
   const simRef = useRef({ active: false })
+  const modeRef = useRef(mode)      // 'draw' | 'paint' mirror for the p5 loop
   const styleAnimRef = useRef({ from: style, t: 1 })  // crossfade between styles
   const styleCurRef = useRef(style)
   const lastGapRef = useRef(gap)
@@ -81,15 +120,35 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
 
   const wake = () => { simRef.current.active = true }
 
+  const refreshHist = () => {
+    setCanUndo(histRef.current.length > 0)
+    setCanRedo(redoRef.current.length > 0)
+  }
+
+  // apply an action's removal (undo) or re-addition (redo)
+  const applyAction = (act, add) => {
+    if (act.kind === 'rope') {
+      if (add) ropesRef.current.push(act.rope)
+      else ropesRef.current = ropesRef.current.filter((r) => r !== act.rope)
+    } else if (act.kind === 'paint') {
+      for (const k of act.nodes) add ? paintNodesRef.current.add(k) : paintNodesRef.current.delete(k)
+      for (const k of act.edges) add ? paintEdgesRef.current.add(k) : paintEdgesRef.current.delete(k)
+    }
+  }
+
   const doUndo = () => {
-    if (!ropesRef.current.length) return
-    redoRef.current.push(ropesRef.current.pop())
-    wake(); setCanUndo(ropesRef.current.length > 0); setCanRedo(true)
+    const act = histRef.current.pop()
+    if (!act) return
+    applyAction(act, false)
+    redoRef.current.push(act)
+    wake(); refreshHist()
   }
   const doRedo = () => {
-    if (!redoRef.current.length) return
-    ropesRef.current.push(redoRef.current.pop())
-    wake(); setCanRedo(redoRef.current.length > 0); setCanUndo(true)
+    const act = redoRef.current.pop()
+    if (!act) return
+    applyAction(act, true)
+    histRef.current.push(act)
+    wake(); refreshHist()
   }
 
   const reseed = (cfg) => {
@@ -104,6 +163,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   // sync config; re-seed on geometry change; keep the content centered
   useEffect(() => {
     editModeRef.current = editMode
+    modeRef.current = mode
     if (!editMode) { hoverPinRef.current = null; dragPinRef.current = null }
     insetRef.current = leftInset
     if (style !== styleCurRef.current) {
@@ -125,7 +185,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     lastRowsRef.current = rows
     if (!touchedRef.current || geomChanged) ctrlRef.current?.fit()
     wake()
-  }, [cols, rows, cellSize, gap, shape, tension, style, cornerRadius, hideGuides, editMode])
+  }, [cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, hideGuides, editMode])
 
   // re-read theme colors so pins/ropes recolor on light/dark switch (deferred to rAF
   // so the parent's data-theme update has committed first)
@@ -229,6 +289,25 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           wake()
         }
 
+        // paint mode: connect a cell to the previous one when they are neighbors
+        const paintTouch = (hit) => {
+          if (!hit) return
+          const drag = paintDragRef.current; if (!drag) return
+          const key = hit.r + ',' + hit.c
+          if (!paintNodesRef.current.has(key)) {
+            paintNodesRef.current.add(key); drag.addedNodes.push(key)
+          }
+          if (drag.last && (drag.last.r !== hit.r || drag.last.c !== hit.c)
+            && adjacentCells(drag.last, hit)) {
+            const ek = edgeKey(drag.last, hit)
+            if (!paintEdgesRef.current.has(ek)) {
+              paintEdgesRef.current.add(ek); drag.addedEdges.push(ek)
+            }
+          }
+          drag.last = hit
+          wake()
+        }
+
         el.addEventListener('pointerdown', (e) => {
           // pan: middle button, Space + left button, or the hand (pan) tool
           if (e.button === 1 || (e.button === 0 && (spaceRef.current || panToolRef.current))) {
@@ -261,6 +340,11 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             return
           }
           el.setPointerCapture(e.pointerId)
+          if (modeRef.current === 'paint') {
+            paintDragRef.current = { last: null, addedNodes: [], addedEdges: [] }
+            paintTouch(pinAt(worldOf(e)))
+            return
+          }
           curRef.current = [worldOf(e)]
         })
         el.addEventListener('pointermove', (e) => {
@@ -280,7 +364,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
               : (spaceRef.current || panToolRef.current ? 'grab' : 'default')
             return
           }
-          if (!curRef.current) return
+          if (!curRef.current) {
+            if (paintDragRef.current) paintTouch(pinAt(worldOf(e)))
+            return
+          }
           const q = worldOf(e), last = curRef.current[curRef.current.length - 1]
           if (Math.hypot(q.x - last.x, q.y - last.y) >= 8 / viewRef.current.scale) curRef.current.push(q)
         })
@@ -293,10 +380,22 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             if (joints.length >= 2) {
               const cfg = cfgRef.current, O = PAD + CELL / 2, pitch = CELL + cfg.gap
               const loop = pts.map((q) => ({ gx: (q.x - O) / pitch, gy: (q.y - O) / pitch }))
-              ropesRef.current.push({ loop, joints }); wake()
+              const rope = { loop, joints }
+              ropesRef.current.push(rope); wake()
+              histRef.current.push({ kind: 'rope', rope })
               redoRef.current = []
-              setCanUndo(true); setCanRedo(false)
+              refreshHist()
             }
+          }
+        }
+        const finishPaint = () => {
+          const drag = paintDragRef.current
+          paintDragRef.current = null
+          if (!drag) return
+          if (drag.addedNodes.length || drag.addedEdges.length) {
+            histRef.current.push({ kind: 'paint', nodes: drag.addedNodes, edges: drag.addedEdges })
+            redoRef.current = []
+            refreshHist()
           }
         }
         el.addEventListener('pointerup', (e) => {
@@ -306,9 +405,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             return
           }
           if (dragPinRef.current) { dragPinRef.current = null; return }
+          if (paintDragRef.current) { finishPaint(); return }
           finishDraw()
         })
-        el.addEventListener('pointercancel', () => { curRef.current = null; panRef.current = null; dragPinRef.current = null })
+        el.addEventListener('pointercancel', () => { curRef.current = null; panRef.current = null; dragPinRef.current = null; paintDragRef.current = null })
 
         // wheel: pan by default, zoom with Ctrl/Cmd (or trackpad pinch)
         el.addEventListener('wheel', (e) => {
@@ -452,6 +552,9 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           }
         }
 
+        // painted blobs (metaball bridges + node circles)
+        drawPaint(p, paintNodesRef.current, paintEdgesRef.current, cfg, COL)
+
         // edit mode: guides render on top of the drawings
         if (edit) drawGuides()
 
@@ -484,7 +587,8 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   // actions exposed to the Sidebar
   useImperativeHandle(ref, () => ({
     clear() {
-      ropesRef.current = []; redoRef.current = []; curRef.current = null
+      ropesRef.current = []; histRef.current = []; redoRef.current = []; curRef.current = null
+      paintNodesRef.current.clear(); paintEdgesRef.current.clear(); paintDragRef.current = null
       wake(); setCanUndo(false); setCanRedo(false)
     },
     resetCircles() {
@@ -495,7 +599,8 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     undo: doUndo,
     redo: doRedo,
     exportSVG() {
-      const svg = buildSVG(ropesRef.current, cfgRef.current, colRef.current.ink)
+      const paint = { nodes: paintNodesRef.current, edges: paintEdgesRef.current }
+      const svg = buildSVG(ropesRef.current, paint, cfgRef.current, colRef.current.ink)
       download(new Blob([svg], { type: 'image/svg+xml' }), 'grid.svg')
     },
     exportPNG() {
@@ -504,6 +609,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       const pg = p5Ref.current.createGraphics(w, h)
       pg.pixelDensity(2); pg.clear()
       for (const rope of ropesRef.current) drawRope(pg, rope.joints, cfg.style, colRef.current)
+      drawPaint(pg, paintNodesRef.current, paintEdgesRef.current, cfg, colRef.current)
       p5Ref.current.saveCanvas(pg, 'grid', 'png')
       pg.remove()
     },
