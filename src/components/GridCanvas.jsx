@@ -586,7 +586,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
               if (paint) {
                 const sel = paintSelRef.current, hov = paintHoverRef.current
                 const target = (sel && `${sel.r},${sel.c}` === key) ? 1
-                  : (hov && `${hov.r},${hov.c}` === key) ? 0.6 : 0
+                  : (hov && `${hov.r},${hov.c}` === key) ? 1 : 0
                 const prev = paintAnimRef.current.get(key) || 0
                 pt = prev + (target - prev) * 0.25
                 paintAnimRef.current.set(key, pt < 0.001 ? 0 : pt)

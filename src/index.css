@@ -113,14 +113,14 @@ body { margin: 0; font-family: var(--font-sans); color: var(--c-text); backgroun
 [data-theme="dark"] .seg:hover .seg-opt { color: var(--c-panel); }
 [data-theme="dark"] .seg:hover .seg-opt.active { background: var(--c-panel); color: #ffc800; }
 
-/* keyboard shortcut badge: lowercase letter in a small rounded square (font-height) */
+/* keyboard shortcut badge: uppercase letter in a small rounded square (font-height) */
 .kbd {
   display: inline-flex; align-items: center; justify-content: center;
   width: 1.35em; height: 1.35em; margin-left: 6px; padding: 0;
   font-family: var(--font-mono, monospace); font-size: 0.82em; font-weight: 600; line-height: 1;
   color: var(--c-text); border: 1px solid var(--c-line-strong); border-radius: 4px;
   background: color-mix(in srgb, var(--c-line) 18%, transparent);
-  opacity: 0.75; text-transform: lowercase;
+  opacity: 0.75; text-transform: uppercase;
 }
 
 /* menu buttons */

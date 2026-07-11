@@ -92,7 +92,7 @@ assets/                    # reference images
   with smooth **metaball blob** bridges (8-way adjacency, never skipping a cell): drag the cursor
   across pins, or click one pin then click a neighbor (chains from the last). Nodes and bridges share
   the ink fill so they read as one shape, follow the Pin shape (rounded squares in Square mode), the
-  hovered pin's fill tints yellow (armed pin fully accent), and clicking an armed pin again removes it
+  hovered pin fills solid accent yellow (armed pin too), and clicking an armed pin again removes it
   and its links.
 - **Blob spread** (Paint only) — tunes the metaball connection neck (low = thin, high = fat bridge);
   it is the `v` (contact-point spread) parameter, the more visible of the two metaball knobs.

@@ -5,7 +5,7 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Added
-- **Keyboard shortcuts** with on-screen badges (a lowercase letter in a small rounded square next to
+- **Keyboard shortcuts** with on-screen badges (an uppercase letter in a small rounded square next to
   each label): **M** Mode, **S** Style, **P** Pin, **H** Hide guides, **E** Edit sizes, **C** Clear,
   **R** Reset, **Ctrl/Cmd+Z** Undo (**Shift** to Redo).
 - **Blob spread** slider (Paint mode only): tunes the metaball connection neck — one of the two
@@ -82,7 +82,7 @@ All notable changes to this project. Newest first.
   *(loop, spacing, size, tension)* — reverting values reproduces the identical shape.
 
 ### Changed
-- Paint hover now **tints the pin's fill** toward accent (eased) instead of drawing a ring; the armed
+- Paint hover now fills the pin **solid accent yellow** (`#ffc800`, eased) instead of drawing a ring; the armed
   pin is fully accent. Segmented controls (Mode/Style/Pin) are a fixed **140px** with equal-width
   options. The Filled/Outline crossfade is **faster**.
 - **Renamed** to **G_connect** (sidebar title and page title); dropped the "freehand" tag.
