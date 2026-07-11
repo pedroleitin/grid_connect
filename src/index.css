@@ -82,8 +82,8 @@ body { margin: 0; font-family: var(--font-sans); color: var(--c-text); backgroun
 .toggle-switch {
   --thumb-color: var(--c-text);
   position: relative; width: 70px; height: 17px; border-radius: 17px;
-  background-color: var(--c-line); cursor: pointer; border: none;
-  outline: 4px solid var(--c-line);
+  background-color: color-mix(in srgb, var(--c-line) 20%, transparent); cursor: pointer; border: none;
+  outline: 4px solid color-mix(in srgb, var(--c-line) 20%, transparent);
   transition: background-color 0.2s ease, outline-color 0.2s ease; flex-shrink: 0; padding: 0;
 }
 .toggle-switch:hover { background-color: #ffc800; outline-color: #ffc800; }
