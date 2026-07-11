@@ -90,7 +90,9 @@ assets/                    # reference images
   shown only in Draw mode.
 - **Mode** — **Draw** (the elastic rope) or **Paint**. In Paint mode you drag the cursor across
   neighboring pins to connect them with smooth **metaball blob** bridges (8-way adjacency, never
-  skipping a cell); nodes and bridges share the ink fill so they read as one shape.
+  skipping a cell); nodes and bridges share the ink fill so they read as one shape. Nodes follow the
+  Pin shape (rounded squares in Square mode), the hovered pin highlights in yellow, and tapping an
+  already-painted pin removes it and its links.
 - **Style** — Filled (blob) or Outline (line); switching crossfades the rope's opacity.
 - **Pin** — Circle or Square. The rope collides with the chosen shape (a circle, or a
   rounded square with flat edges), so the wrap follows it.

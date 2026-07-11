@@ -43,7 +43,13 @@ function drawPaint(g, nodes, edges, cfg, COL, alpha = 1) {
   for (const key of nodes) {
     const [r, c] = key.split(',').map(Number)
     const ct = cellCenter(r, c, cfg)
-    g.circle(ct.x, ct.y, sizeOf(cfg, r, c))
+    const s = sizeOf(cfg, r, c)
+    if (cfg.shape === 'square') {
+      const cr01 = (cfg.cornerRadius ?? 36) / 100
+      g.rect(ct.x - s / 2, ct.y - s / 2, s, s, (s / 2) * cr01)
+    } else {
+      g.circle(ct.x, ct.y, s)
+    }
   }
 }
 
@@ -77,6 +83,9 @@ const edgeKey = (a, b) => {
   return ka < kb ? ka + '|' + kb : kb + '|' + ka
 }
 
+// smoothstep easing for animation progress (0..1)
+const easeInOut = (t) => t * t * (3 - 2 * t)
+
 const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, hideGuides, editMode, theme, leftInset = 0 }, ref) {
   const holderRef = useRef(null)   // p5 host container (pans/zooms)
   const bgRef = useRef(null)       // full-page dotted background (single seamless layer)
@@ -107,6 +116,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const hoverPinRef = useRef(null)        // { r, c } under the cursor in edit mode
   const hoverAnimRef = useRef(new Map())  // per-pin hover ease: "r,c" -> 0..1
   const dragPinRef = useRef(null)         // { r, c } being resized
+  const paintHoverRef = useRef(null)      // { r, c } under the cursor in paint mode
 
   // view transform: world -> screen is  screen = world * scale + (tx, ty)
   const viewRef = useRef({ scale: 1, tx: 0, ty: 0 })
@@ -131,8 +141,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       if (add) ropesRef.current.push(act.rope)
       else ropesRef.current = ropesRef.current.filter((r) => r !== act.rope)
     } else if (act.kind === 'paint') {
-      for (const k of act.nodes) add ? paintNodesRef.current.add(k) : paintNodesRef.current.delete(k)
-      for (const k of act.edges) add ? paintEdgesRef.current.add(k) : paintEdgesRef.current.delete(k)
+      // inverse actions (a removal) re-add on undo and delete on redo
+      const put = act.inverse ? !add : add
+      for (const k of act.nodes) put ? paintNodesRef.current.add(k) : paintNodesRef.current.delete(k)
+      for (const k of act.edges) put ? paintEdgesRef.current.add(k) : paintEdgesRef.current.delete(k)
     }
   }
 
@@ -165,6 +177,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     editModeRef.current = editMode
     modeRef.current = mode
     if (!editMode) { hoverPinRef.current = null; dragPinRef.current = null }
+    if (mode !== 'paint') paintHoverRef.current = null
     insetRef.current = leftInset
     if (style !== styleCurRef.current) {
       styleAnimRef.current = { from: styleCurRef.current, t: 0 }
@@ -308,6 +321,21 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           wake()
         }
 
+        // paint mode: remove a node and every link touching it (undoable)
+        const removeNode = (key) => {
+          const nodes = [], edges = []
+          if (paintNodesRef.current.has(key)) { paintNodesRef.current.delete(key); nodes.push(key) }
+          for (const ek of [...paintEdgesRef.current]) {
+            const [ka, kb] = ek.split('|')
+            if (ka === key || kb === key) { paintEdgesRef.current.delete(ek); edges.push(ek) }
+          }
+          if (nodes.length || edges.length) {
+            histRef.current.push({ kind: 'paint', nodes, edges, inverse: true })
+            redoRef.current = []
+            refreshHist(); wake()
+          }
+        }
+
         el.addEventListener('pointerdown', (e) => {
           // pan: middle button, Space + left button, or the hand (pan) tool
           if (e.button === 1 || (e.button === 0 && (spaceRef.current || panToolRef.current))) {
@@ -341,8 +369,11 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           }
           el.setPointerCapture(e.pointerId)
           if (modeRef.current === 'paint') {
-            paintDragRef.current = { last: null, addedNodes: [], addedEdges: [] }
-            paintTouch(pinAt(worldOf(e)))
+            const hit = pinAt(worldOf(e))
+            const downKey = hit ? hit.r + ',' + hit.c : null
+            const preexisting = downKey ? paintNodesRef.current.has(downKey) : false
+            paintDragRef.current = { last: null, addedNodes: [], addedEdges: [], downKey, preexisting }
+            paintTouch(hit)
             return
           }
           curRef.current = [worldOf(e)]
@@ -365,7 +396,13 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             return
           }
           if (!curRef.current) {
-            if (paintDragRef.current) paintTouch(pinAt(worldOf(e)))
+            if (paintDragRef.current) { paintTouch(pinAt(worldOf(e))); return }
+            if (modeRef.current === 'paint') {
+              paintHoverRef.current = pinAt(worldOf(e))
+              el.style.cursor = paintHoverRef.current
+                ? 'pointer'
+                : (spaceRef.current || panToolRef.current ? 'grab' : 'crosshair')
+            }
             return
           }
           const q = worldOf(e), last = curRef.current[curRef.current.length - 1]
@@ -392,6 +429,12 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           const drag = paintDragRef.current
           paintDragRef.current = null
           if (!drag) return
+          // a plain tap on a pre-existing node removes it and its links (toggle)
+          if (drag.preexisting && drag.downKey && !drag.addedNodes.length && !drag.addedEdges.length
+            && drag.last && `${drag.last.r},${drag.last.c}` === drag.downKey) {
+            removeNode(drag.downKey)
+            return
+          }
           if (drag.addedNodes.length || drag.addedEdges.length) {
             histRef.current.push({ kind: 'paint', nodes: drag.addedNodes, edges: drag.addedEdges })
             redoRef.current = []
@@ -409,6 +452,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           finishDraw()
         })
         el.addEventListener('pointercancel', () => { curRef.current = null; panRef.current = null; dragPinRef.current = null; paintDragRef.current = null })
+        el.addEventListener('pointerleave', () => { paintHoverRef.current = null })
 
         // wheel: pan by default, zoom with Ctrl/Cmd (or trackpad pinch)
         el.addEventListener('wheel', (e) => {
@@ -542,11 +586,12 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
 
         // ropes — crossfade opacity when the style changes (fill <-> outline)
         const sa = styleAnimRef.current
-        if (sa.t < 1) sa.t = Math.min(1, sa.t + 0.06)
+        if (sa.t < 1) sa.t = Math.min(1, sa.t + 0.045)
+        const se = easeInOut(sa.t)
         for (const rope of ropesRef.current) {
           if (sa.t < 1) {
-            drawRope(p, rope.joints, sa.from, COL, 1 - sa.t)
-            drawRope(p, rope.joints, cfg.style, COL, sa.t)
+            drawRope(p, rope.joints, sa.from, COL, 1 - se)
+            drawRope(p, rope.joints, cfg.style, COL, se)
           } else {
             drawRope(p, rope.joints, cfg.style, COL)
           }
@@ -554,6 +599,17 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
 
         // painted blobs (metaball bridges + node circles)
         drawPaint(p, paintNodesRef.current, paintEdgesRef.current, cfg, COL)
+
+        // paint mode: accent (yellow) highlight on the hovered pin
+        if (modeRef.current === 'paint' && !edit && paintHoverRef.current) {
+          const h = paintHoverRef.current
+          const ct = cellCenter(h.r, h.c, cfg), s = sizeOf(cfg, h.r, h.c)
+          const cr01 = (cfg.cornerRadius ?? 36) / 100
+          const rad = s / 2 + 3 / v.scale
+          p.noFill(); p.stroke(COL.accent); p.strokeWeight(2.5 / v.scale)
+          if (cfg.shape === 'square') p.rect(ct.x - rad, ct.y - rad, rad * 2, rad * 2, rad * cr01)
+          else p.circle(ct.x, ct.y, rad * 2)
+        }
 
         // edit mode: guides render on top of the drawings
         if (edit) drawGuides()

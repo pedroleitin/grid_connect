@@ -59,7 +59,10 @@ or ignored (Edit sizes). Exports SVG/PNG.
 - **Paint mode (`mode='paint'`, `modeRef`):** dragging over pins connects neighbors with metaball
   **blob** bridges. `paintNodesRef` (Set `"r,c"`) + `paintEdgesRef` (Set of sorted `"ka|kb"` via
   `edgeKey`); `adjacentCells` (8-way) blocks skipping a cell. `metaball`/`metaballPathD` (paper.js
-  Meta Balls port) build the Bézier bridge; `drawPaint` renders bridges + node circles with the same
-  solid ink so they union. Undo/redo unified in `histRef`/`redoRef` (`{kind:'rope'|'paint'}`);
-  `buildSVG(ropes, paint, cfg, ink)` and both exports include the blobs.
+  Meta Balls port) build the Bézier bridge; `drawPaint` renders bridges + nodes with the same solid
+  ink so they union — nodes follow the Pin shape (rounded rect for squares). A tap on an existing
+  node (`removeNode`) deletes it + its links; `paintHoverRef` shows the accent hover ring. Undo/redo
+  unified in `histRef`/`redoRef` (`{kind:'rope'|'paint'}`, removals use `inverse`);
+  `buildSVG(ropes, paint, cfg, ink)` and both exports include the blobs. Filled ropes/exports carry a
+  matching `stroke`; the style crossfade uses `easeInOut`.
 - UI language and comments: **English**. Smallest change that respects the existing style.

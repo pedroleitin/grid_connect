@@ -11,6 +11,14 @@ All notable changes to this project. Newest first.
   Nodes and bridges share the same solid ink fill so they read as one connected shape, and blobs are
   included in the SVG (one `<path>` per bridge + `<circle>` per node) and PNG export. Undo/redo is now
   unified across ropes and blobs. (Metaball geometry ported from the paper.js Meta Balls example.)
+  - Paint nodes follow the **Pin shape**: with **Pin → Square** they render as rounded squares
+    (respecting the Corner radius) both on canvas and in the SVG (`<rect rx>`) / PNG export.
+  - **Yellow hover** highlight on the pin under the cursor in Paint mode.
+  - **Tap to remove**: clicking an already-painted pin (without dragging) removes it and every
+    link touching it (undoable).
+- **Eased style switch & filled stroke in export**: the Filled/Outline crossfade now uses a
+  smoothstep easing, and exporting a **Filled** rope includes the matching `stroke` in the SVG
+  (so the vector matches the on-canvas render exactly).
 - **Animated style switch**: toggling **Style → Filled/Outline** now crossfades the rope's
   opacity (the old style fades out while the new one fades in) instead of switching instantly.
 - **Animated Corner radius reveal**: the **Corner radius** slider now slides/fades in and out

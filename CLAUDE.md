@@ -76,9 +76,12 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
   neighbors with **metaball blob** bridges — `paintNodesRef` (Set of `"r,c"`) + `paintEdgesRef` (Set
   of sorted `"ka|kb"` from `edgeKey`); `adjacentCells` (8-way) gates links so you can't skip a cell.
   `metaball()`/`metaballPathD()` in `geometry.js` (paper.js Meta Balls port) build the Bézier bridge;
-  `drawPaint()` renders bridges (`bezierVertex`) + node circles with the same solid ink so they union.
-  Undo/redo is unified in `histRef`/`redoRef` as actions `{kind:'rope'|'paint', ...}`; `buildSVG` now
-  takes `(ropes, paint, cfg, ink)` and both exports include the blobs.
+  `drawPaint()` renders bridges (`bezierVertex`) + nodes with the same solid ink so they union — nodes
+  follow the Pin shape (rounded `rect` for squares). A plain tap on an existing node calls `removeNode`
+  (deletes it + its links); `paintHoverRef` drives the accent (yellow) hover ring on the pin under the
+  cursor. Undo/redo is unified in `histRef`/`redoRef` as actions `{kind:'rope'|'paint', ...}` (paint
+  removals use an `inverse` flag); `buildSVG` takes `(ropes, paint, cfg, ink)` and both exports include
+  the blobs. Filled ropes/exports carry a matching `stroke`; the style crossfade uses `easeInOut`.
 - **StrictMode:** the mount effect creates/cleans up the p5 (`p5Ref.current.remove()`). Do not create
   multiple instances.
 

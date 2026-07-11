@@ -259,10 +259,12 @@ export function buildSVG(ropes, paint, cfg, ink) {
     if (!J || J.length < 3) continue;
     const d = splinePathD(J, true);
     body += cfg.style === 'fill'
-      ? `<path d="${d}" fill="${ink}"/>`
+      ? `<path d="${d}" fill="${ink}" stroke="${ink}" stroke-width="4" stroke-linejoin="round"/>`
       : `<path d="${d}" fill="none" stroke="${ink}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>`;
   }
   if (paint && paint.nodes && paint.nodes.size) {
+    const square = cfg.shape === 'square';
+    const cr01 = (cfg.cornerRadius ?? 36) / 100;
     for (const key of paint.edges) {
       const [ka, kb] = key.split('|');
       const [ra, ca] = ka.split(',').map(Number);
@@ -274,7 +276,10 @@ export function buildSVG(ropes, paint, cfg, ink) {
     for (const key of paint.nodes) {
       const [r, c] = key.split(',').map(Number);
       const ct = cellCenter(r, c, cfg);
-      body += `<circle cx="${R2(ct.x)}" cy="${R2(ct.y)}" r="${R2(sizeOf(cfg, r, c) / 2)}" fill="${ink}"/>`;
+      const s = sizeOf(cfg, r, c);
+      body += square
+        ? `<rect x="${R2(ct.x - s / 2)}" y="${R2(ct.y - s / 2)}" width="${R2(s)}" height="${R2(s)}" rx="${R2((s / 2) * cr01)}" fill="${ink}"/>`
+        : `<circle cx="${R2(ct.x)}" cy="${R2(ct.y)}" r="${R2(s / 2)}" fill="${ink}"/>`;
     }
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${R2(w)}" height="${R2(h)}" viewBox="0 0 ${R2(w)} ${R2(h)}">\n${body}\n</svg>`;
