@@ -16,7 +16,7 @@ export default function App() {
   const [editMode, setEditMode] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
   const [mode, setMode] = useState('draw')       // 'draw' (rope) | 'paint' (blob connect)
-  const [drawTool, setDrawTool] = useState('free') // 'free' (freehand) | 'points' (polygon)
+  const [drawTool, setDrawTool] = useState('points') // 'points' (polygon) | 'free' (freehand)
   const canvasApi = useRef(null)
 
   useEffect(() => {

@@ -156,7 +156,7 @@ export default function Sidebar({
           <div>
             <Segmented
               label="Line" value={drawTool} onChange={setDrawTool} kbd="l"
-              options={[{ value: 'free', label: 'Freehand' }, { value: 'points', label: 'Points' }]}
+              options={[{ value: 'points', label: 'Points' }, { value: 'free', label: 'Freehand' }]}
             />
           </div>
         </div>
