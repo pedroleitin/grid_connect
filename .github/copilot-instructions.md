@@ -71,4 +71,6 @@ or ignored (Edit sizes). Exports SVG/PNG.
 - **Keyboard shortcuts** (App `keydown`, ignores form fields): **M/S/P** toggle Mode/Style/Pin,
   **H/E** toggle Hide guides/Edit, **C** Clear, **R** Reset, **Ctrl/Cmd+Z** Undo (**Shift** Redo).
   Labels show a `Kbd` badge (`.kbd`); segmented controls are **140px** with equal-width options.
+  Holding **Shift** (GridCanvas `shiftRef`) makes `isEdit()` true — a transient Edit-sizes override
+  while hovering a pin (recomputes hover from `lastEvtRef`; clears on keyup).
 - UI language and comments: **English**. Smallest change that respects the existing style.

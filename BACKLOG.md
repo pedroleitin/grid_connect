@@ -21,7 +21,8 @@
 - [x] **Connect** mode (metaball between neighbors) — folded into Paint mode above.
 - [x] **Paint refinements**: click-to-click connect (click a pin, then a neighbor) + chaining,
   click-again-to-remove, eased fill-tint hover, and a **Blob spread** slider (metaball `v`).
-- [x] **Keyboard shortcuts** (M/S/P/H/E/C/R, Ctrl/Cmd+Z) with on-screen `Kbd` badges.
+- [x] **Keyboard shortcuts** (M/S/P/H/E/C/R, Ctrl/Cmd+Z) with on-screen `Kbd` badges;
+  hold **Shift** + hover a pin for a transient Edit-sizes override.
 - [ ] Smooth/simplify the stroke points for even smaller SVGs.
 - [x] Light/dark theme toggle (`[data-theme]` palette mapped to `@theme` tokens).
 - [x] Full-canvas drawing with pan/zoom (scroll to pan, Ctrl/Cmd+scroll or pinch to zoom,

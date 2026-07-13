@@ -216,9 +216,12 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       let ro = null
       let onKeyDown = null, onKeyUp = null
       const spaceRef = { current: false }
+      const shiftRef = { current: false }   // hold Shift to temporarily engage Edit sizes
+      const lastEvtRef = { current: null }   // last pointermove event, to recompute hover on Shift
       const panRef = { current: null }
       const canvasEl = { current: null }
       const idleCursor = () => (spaceRef.current || panToolRef.current ? 'grab' : 'crosshair')
+      const isEdit = () => editModeRef.current || shiftRef.current
 
       // paint the single full-page dotted background so it pans/zooms with the
       // content — offset by the holder's page position so the pattern is seamless
@@ -378,7 +381,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           }
           if (e.button !== 0) return
           // edit mode: click the center X to (un)ignore, else grab to resize
-          if (editModeRef.current) {
+          if (isEdit()) {
             const w = worldOf(e)
             const hit = hoverPinRef.current || pinAt(w)
             if (hit) {
@@ -407,6 +410,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           curRef.current = [worldOf(e)]
         })
         el.addEventListener('pointermove', (e) => {
+          lastEvtRef.current = e
           if (panRef.current && panRef.current.id === e.pointerId) {
             const dx = e.clientX - panRef.current.x, dy = e.clientY - panRef.current.y
             panRef.current.x = e.clientX; panRef.current.y = e.clientY
@@ -415,7 +419,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             return
           }
           // edit mode: drag resizes the grabbed pin; otherwise track the hovered pin
-          if (editModeRef.current) {
+          if (isEdit()) {
             if (dragPinRef.current) { resizePin(worldOf(e)); return }
             hoverPinRef.current = pinAt(worldOf(e))
             el.style.cursor = hoverPinRef.current
@@ -499,14 +503,28 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           }
         }, { passive: false })
 
-        // Space toggles pan mode
+        // Space toggles pan mode; Shift temporarily engages Edit sizes while held
         onKeyDown = (e) => {
           if (e.code === 'Space' && !spaceRef.current && (e.target === document.body || e.target === el)) {
             spaceRef.current = true; if (!panRef.current) el.style.cursor = 'grab'; e.preventDefault()
           }
+          if (e.key === 'Shift' && !shiftRef.current) {
+            shiftRef.current = true
+            if (!editModeRef.current && lastEvtRef.current && !panRef.current) {
+              hoverPinRef.current = pinAt(worldOf(lastEvtRef.current))
+              el.style.cursor = hoverPinRef.current ? 'ew-resize' : idleCursor()
+            }
+          }
         }
         onKeyUp = (e) => {
           if (e.code === 'Space') { spaceRef.current = false; if (!panRef.current) el.style.cursor = idleCursor() }
+          if (e.key === 'Shift') {
+            shiftRef.current = false
+            if (!editModeRef.current) {
+              hoverPinRef.current = null; dragPinRef.current = null
+              if (!panRef.current) el.style.cursor = idleCursor()
+            }
+          }
         }
         window.addEventListener('keydown', onKeyDown)
         window.addEventListener('keyup', onKeyUp)
@@ -555,7 +573,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         p.scale(v.scale)
 
         // guides (pins) — fade in/out with "hide guides"; forced visible in edit mode
-        const edit = editModeRef.current
+        const edit = isEdit()
         const gTarget = (cfg.hideGuides && !edit) ? 0 : 1
         guideRef.current += (gTarget - guideRef.current) * 0.18
         if (guideRef.current < 0.003) guideRef.current = 0

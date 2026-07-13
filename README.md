@@ -107,6 +107,7 @@ assets/                    # reference images
 - **Undo / Redo** — floating icon buttons at the bottom-left of the canvas; **Clear** in the sidebar.
 - **Keyboard shortcuts** (badges shown next to each label): **M** Mode, **S** Style, **P** Pin,
   **H** Hide guides, **E** Edit sizes, **C** Clear, **R** Reset, **Ctrl/Cmd+Z** Undo (**Shift** Redo).
+  Hold **Shift** and hover a pin to temporarily engage Edit sizes (resize/ignore) without toggling it.
 - **Export SVG / PNG** — icon buttons centered at the bottom of the canvas.
 
 ## Export

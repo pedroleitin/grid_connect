@@ -89,7 +89,9 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
 - **Keyboard shortcuts** (App-level `keydown` effect, ignores form fields): **M** Mode, **S** Style,
   **P** Pin, **H** Hide guides, **E** Edit sizes, **C** Clear, **R** Reset, **Ctrl/Cmd+Z** Undo
   (**Shift** Redo). Each label shows a `Kbd` badge (`.kbd` in `index.css`); segmented controls are a
-  fixed **140px** with equal-width options.
+  fixed **140px** with equal-width options. Holding **Shift** sets `shiftRef` in `GridCanvas`, which
+  makes `isEdit()` (`editModeRef || shiftRef`) true — a transient Edit-sizes override while hovering a
+  pin (recomputes hover from `lastEvtRef` on keydown; clears hover/drag + resets cursor on keyup).
 - **StrictMode:** the mount effect creates/cleans up the p5 (`p5Ref.current.remove()`). Do not create
   multiple instances.
 

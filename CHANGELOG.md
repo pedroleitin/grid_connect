@@ -7,7 +7,8 @@ All notable changes to this project. Newest first.
 ### Added
 - **Keyboard shortcuts** with on-screen badges (an uppercase letter in a small rounded square next to
   each label): **M** Mode, **S** Style, **P** Pin, **H** Hide guides, **E** Edit sizes, **C** Clear,
-  **R** Reset, **Ctrl/Cmd+Z** Undo (**Shift** to Redo).
+  **R** Reset, **Ctrl/Cmd+Z** Undo (**Shift** to Redo). Also, holding **Shift** while hovering a pin
+  temporarily engages Edit sizes (resize/ignore) without flipping the toggle.
 - **Blob spread** slider (Paint mode only): tunes the metaball connection neck — one of the two
   metaball parameters (`v`, the contact-point spread; the other is the fixed handle length). Low =
   thin neck, high = fat bridge.
