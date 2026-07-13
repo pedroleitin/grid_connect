@@ -27,6 +27,12 @@ or ignored (Edit sizes). Exports SVG/PNG.
   state, to avoid re-rendering per point or losing the drawing. Props sync `cfgRef` in an effect.
 - **Input via Pointer Events** (`pointerdown/move/up`, `setPointerCapture`, coords via
   `getBoundingClientRect`). Do NOT use `p.mouseX/mouseY` (produces spurious points in real drags).
+- **Path tool** (`drawTool`/`drawToolRef`, `'free'|'points'`, Draw mode only; **Path** segmented).
+  `'free'` = freehand `curRef` stroke; `'points'` = polygon/pen: `pointsDown` fills `polyRef` (world
+  pts), `polyCursorRef` = rubber-band, `closePolygon()` on first-vertex click (len≥3) or `dblclick`
+  (`polyClosedAtRef` guards the stray second down), `polyNearFirst` sets cursor, **Esc** cancels;
+  `closePolygon` seals the seam then `seedJoints(pts,10)` → normal rope. Helpers defined in `p.setup`
+  are NOT visible in `p.draw` — inline or outer-scope anything used in `p.draw`.
 - **Pan/zoom** is a render-only view transform in `viewRef` (`{scale, tx, ty}`); physics and export
   stay in world coords so zoom never affects the SVG/PNG. The canvas spans the **full viewport**
   behind the opaque sidebar; a `leftInset` prop keeps `fit()`/zoom centered on the visible area so

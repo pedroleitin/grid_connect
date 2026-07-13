@@ -118,7 +118,7 @@ function Segmented({ label, options, value, onChange, kbd }) {
 export default function Sidebar({
   cols, setCols, rows, setRows, cellSize, setCellSize, gap, setGap,
   tension, setTension, mode, setMode, style, setStyle, shape, setShape,
-  cornerRadius, setCornerRadius, blob, setBlob,
+  cornerRadius, setCornerRadius, blob, setBlob, drawTool, setDrawTool,
   hideGuides, setHideGuides,
   editMode, setEditMode,
   onClear, onResetCircles,
@@ -152,6 +152,14 @@ export default function Sidebar({
           label="Mode" value={mode} onChange={setMode} kbd="m"
           options={[{ value: 'draw', label: 'Draw' }, { value: 'paint', label: 'Paint' }]}
         />
+        <div className={`collapse-row${mode === 'draw' ? ' collapse-row--open' : ''}`}>
+          <div>
+            <Segmented
+              label="Path" value={drawTool} onChange={setDrawTool}
+              options={[{ value: 'free', label: 'Freehand' }, { value: 'points', label: 'Points' }]}
+            />
+          </div>
+        </div>
         <Segmented
           label="Style" value={style} onChange={setStyle} kbd="s"
           options={[{ value: 'fill', label: 'Filled' }, { value: 'stroke', label: 'Outline' }]}

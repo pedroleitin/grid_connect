@@ -11,6 +11,10 @@
   (flat edges, softly rounded corners matching the guide), so the wrap follows the square shape.
   A **Corner radius** slider (20–100%) controls the rounding of both guides and the rope contour.
 - [ ] **Erase** tool: remove drawn ropes (or parts of them) directly on the canvas.
+- [x] **Points path tool** (Path → Freehand/Points): a polygon/pen alternative to freehand
+  drawing — click vertices joined by straight edges (dashed rubber-band preview), close by
+  clicking the first vertex or double-clicking; **Esc** cancels. Closed loops become normal
+  shrink-wrap ropes.
 - [x] **Ignore** circles: in Edit mode, click the center **X** of a pin to mark it ignored
   (reddish); ignored pins are skipped by the physics so the rope passes through them.
 - [x] **Hide guides** toggle (draw without the pin dots showing).

@@ -87,7 +87,7 @@ const edgeKey = (a, b) => {
 // smoothstep easing for animation progress (0..1)
 const easeInOut = (t) => t * t * (3 - 2 * t)
 
-const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, hideGuides, editMode, theme, leftInset = 0 }, ref) {
+const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, hideGuides, editMode, theme, leftInset = 0 }, ref) {
   const holderRef = useRef(null)   // p5 host container (pans/zooms)
   const bgRef = useRef(null)       // full-page dotted background (single seamless layer)
   const insetRef = useRef(leftInset) // left area hidden by the sidebar (for centering)
@@ -105,6 +105,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const curRef = useRef(null)       // raw stroke points (world coords) while drawing
   const simRef = useRef({ active: false })
   const modeRef = useRef(mode)      // 'draw' | 'paint' mirror for the p5 loop
+  const drawToolRef = useRef(drawTool)  // 'free' | 'points' mirror for the p5 loop
+  const polyRef = useRef(null)      // polygon vertices (world coords) while building, or null
+  const polyCursorRef = useRef(null)   // live cursor (world) for the rubber-band segment
+  const polyClosedAtRef = useRef(0)    // timestamp guard so a closing double-click won't reopen
   const styleAnimRef = useRef({ from: style, t: 1 })  // crossfade between styles
   const styleCurRef = useRef(style)
   const lastGapRef = useRef(gap)
@@ -179,8 +183,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   useEffect(() => {
     editModeRef.current = editMode
     modeRef.current = mode
+    drawToolRef.current = drawTool
     if (!editMode) { hoverPinRef.current = null; dragPinRef.current = null }
     if (mode !== 'paint') { paintHoverRef.current = null; paintSelRef.current = null }
+    if (mode !== 'draw' || drawTool !== 'points') { polyRef.current = null; polyCursorRef.current = null }
     insetRef.current = leftInset
     if (style !== styleCurRef.current) {
       styleAnimRef.current = { from: styleCurRef.current, t: 0 }
@@ -201,7 +207,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     lastRowsRef.current = rows
     if (!touchedRef.current || geomChanged) ctrlRef.current?.fit()
     wake()
-  }, [cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, hideGuides, editMode])
+  }, [cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, hideGuides, editMode])
 
   // re-read theme colors so pins/ropes recolor on light/dark switch (deferred to rAF
   // so the parent's data-theme update has committed first)
@@ -407,6 +413,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             paintDragRef.current = { downHit: hit, last: hit, addedNodes: [], addedEdges: [] }
             return
           }
+          if (drawToolRef.current === 'points') { pointsDown(worldOf(e)); return }
           curRef.current = [worldOf(e)]
         })
         el.addEventListener('pointermove', (e) => {
@@ -439,6 +446,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
               el.style.cursor = paintHoverRef.current
                 ? 'pointer'
                 : (spaceRef.current || panToolRef.current ? 'grab' : 'crosshair')
+            } else if (drawToolRef.current === 'points') {
+              polyCursorRef.current = worldOf(e)
+              el.style.cursor = (spaceRef.current || panToolRef.current) ? 'grab'
+                : (polyNearFirst(polyCursorRef.current) ? 'pointer' : 'crosshair')
             }
             return
           }
@@ -461,6 +472,42 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
               refreshHist()
             }
           }
+        }
+        // polygon (Points tool): true when the cursor is over the first vertex and
+        // the ring already has enough points to close.
+        const polyNearFirst = (w) => {
+          const poly = polyRef.current
+          if (!poly || poly.length < 3 || !w) return false
+          return Math.hypot(w.x - poly[0].x, w.y - poly[0].y) <= 12 / viewRef.current.scale
+        }
+        const closePolygon = () => {
+          const poly = polyRef.current
+          polyRef.current = null; polyCursorRef.current = null
+          polyClosedAtRef.current = performance.now()
+          el.style.cursor = idleCursor()
+          if (!poly || poly.length < 3) return
+          const pts = [...poly, poly[0]]   // close the seam so it samples evenly
+          const joints = seedJoints(pts, 10)
+          if (joints.length < 2) return
+          const cfg = cfgRef.current, O = PAD + CELL / 2, pitch = CELL + cfg.gap
+          const loop = pts.map((q) => ({ gx: (q.x - O) / pitch, gy: (q.y - O) / pitch }))
+          const rope = { loop, joints }
+          ropesRef.current.push(rope); wake()
+          histRef.current.push({ kind: 'rope', rope })
+          redoRef.current = []
+          refreshHist()
+        }
+        // add a vertex on click; close when clicking near the first point
+        const pointsDown = (w) => {
+          if (performance.now() - polyClosedAtRef.current < 350) return  // ignore dbl-click tail
+          const poly = polyRef.current
+          if (!poly) { polyRef.current = [w]; polyCursorRef.current = w; return }
+          if (poly.length >= 3 && Math.hypot(w.x - poly[0].x, w.y - poly[0].y) <= 12 / viewRef.current.scale) {
+            closePolygon(); return
+          }
+          const last = poly[poly.length - 1]
+          if (Math.hypot(w.x - last.x, w.y - last.y) >= 6 / viewRef.current.scale) poly.push(w)  // dedupe
+          polyCursorRef.current = w
         }
         const finishPaint = () => {
           const drag = paintDragRef.current
@@ -489,6 +536,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         })
         el.addEventListener('pointercancel', () => { curRef.current = null; panRef.current = null; dragPinRef.current = null; paintDragRef.current = null })
         el.addEventListener('pointerleave', () => { paintHoverRef.current = null })
+        // double-click closes the polygon (Points tool)
+        el.addEventListener('dblclick', (e) => {
+          if (polyRef.current && polyRef.current.length >= 3) { e.preventDefault(); closePolygon() }
+        })
 
         // wheel: pan by default, zoom with Ctrl/Cmd (or trackpad pinch)
         el.addEventListener('wheel', (e) => {
@@ -505,6 +556,9 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
 
         // Space toggles pan mode; Shift temporarily engages Edit sizes while held
         onKeyDown = (e) => {
+          if (e.key === 'Escape' && polyRef.current) {
+            polyRef.current = null; polyCursorRef.current = null; el.style.cursor = idleCursor()
+          }
           if (e.code === 'Space' && !spaceRef.current && (e.target === document.body || e.target === el)) {
             spaceRef.current = true; if (!panRef.current) el.style.cursor = 'grab'; e.preventDefault()
           }
@@ -683,12 +737,36 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         // edit mode: guides render on top of the drawings
         if (edit) drawGuides()
 
-        // preview of the loop being drawn
+        // preview of the loop being drawn (freehand)
         if (curRef.current && curRef.current.length > 1) {
           p.noFill(); p.stroke(COL.accent); p.strokeWeight(2 / v.scale)
           p.drawingContext.setLineDash([5 / v.scale, 5 / v.scale])
           p.beginShape(); for (const pt of curRef.current) p.vertex(pt.x, pt.y); p.endShape()
           p.drawingContext.setLineDash([])
+        }
+
+        // preview of the polygon being built (Points tool): solid placed segments,
+        // a dashed rubber-band to the cursor, and a dot per vertex.
+        if (polyRef.current && polyRef.current.length) {
+          const poly = polyRef.current, sc = v.scale
+          const cur = polyCursorRef.current
+          p.noFill(); p.stroke(COL.accent); p.strokeWeight(2 / sc)
+          if (poly.length > 1) { p.beginShape(); for (const pt of poly) p.vertex(pt.x, pt.y); p.endShape() }
+          if (cur) {
+            p.drawingContext.setLineDash([5 / sc, 5 / sc])
+            const last = poly[poly.length - 1]
+            p.line(last.x, last.y, cur.x, cur.y)
+            p.drawingContext.setLineDash([])
+          }
+          const near = cur && poly.length >= 3 &&
+            Math.hypot(cur.x - poly[0].x, cur.y - poly[0].y) <= 12 / sc
+          p.noStroke()
+          for (let i = 0; i < poly.length; i++) {
+            const r = (i === 0 ? (near ? 7 : 5) : 4) / sc
+            p.fill(i === 0 && near ? COL.accent : COL.ink)
+            p.circle(poly[i].x, poly[i].y, r * 2)
+            if (i === 0 && near) { p.noFill(); p.stroke(COL.accent); p.strokeWeight(2 / sc); p.circle(poly[i].x, poly[i].y, 18 / sc); p.noStroke() }
+          }
         }
 
         p.pop()
@@ -713,6 +791,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   useImperativeHandle(ref, () => ({
     clear() {
       ropesRef.current = []; histRef.current = []; redoRef.current = []; curRef.current = null
+      polyRef.current = null; polyCursorRef.current = null
       paintNodesRef.current.clear(); paintEdgesRef.current.clear(); paintDragRef.current = null
       wake(); setCanUndo(false); setCanRedo(false)
     },

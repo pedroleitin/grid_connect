@@ -31,6 +31,14 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
   - **Pointer input** (`pointerdown/move/up` + `setPointerCapture`, coords via
     `getBoundingClientRect`). Do NOT use `p.mouseX/mouseY` (it reported spurious points at (0,0)
     in real drags → "fan of lines").
+  - **Path tool** (`drawTool`/`drawToolRef`, `'free'|'points'`, Draw mode only; **Path** segmented in
+    the sidebar). `'free'` is the freehand `curRef` stroke. `'points'` is a polygon/pen tool:
+    `pointsDown(w)` drops vertices into `polyRef` (grid-agnostic world pts), `polyCursorRef` drives the
+    dashed rubber-band, close via `closePolygon()` (click first vertex when len≥3, or `dblclick`;
+    `polyClosedAtRef` guards the double-click's stray second down). `polyNearFirst(w)` sets the cursor.
+    **Esc** cancels. `closePolygon` appends `poly[0]` to seal the seam, then `seedJoints(pts,10)` → a
+    normal shrink-wrap rope (`loop` in grid coords, same as freehand). Anything referenced in `p.draw`
+    must be inlined or outer-scoped — helpers defined inside `p.setup` are NOT visible in `p.draw`.
   - **Pan/zoom** is a render-only view transform in `viewRef` (`{scale, tx, ty}`; screen = world *
     scale + t). Physics and export stay in **world coords**, so zoom never affects the SVG/PNG.
     The canvas spans the **full viewport** (behind the opaque sidebar); a `leftInset` prop (the

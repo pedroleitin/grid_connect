@@ -5,6 +5,11 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Added
+- **Points path tool** (Draw mode only): a new **Path → Freehand/Points** toggle. **Freehand** is the
+  existing click-and-drag stroke; **Points** is a polygon/pen tool — click to drop vertices connected
+  by straight edges (a dashed rubber-band previews the next segment), then close the loop by clicking
+  the first vertex again or double-clicking. **Esc** cancels an in-progress polygon. The closed loop
+  becomes a normal shrink-wrap rope (same physics/export).
 - **Keyboard shortcuts** with on-screen badges (an uppercase letter in a small rounded square next to
   each label): **M** Mode, **S** Style, **P** Pin, **H** Hide guides, **E** Edit sizes, **C** Clear,
   **R** Reset, **Ctrl/Cmd+Z** Undo (**Shift** to Redo). Also, holding **Shift** while hovering a pin

@@ -16,6 +16,7 @@ export default function App() {
   const [editMode, setEditMode] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
   const [mode, setMode] = useState('draw')       // 'draw' (rope) | 'paint' (blob connect)
+  const [drawTool, setDrawTool] = useState('free') // 'free' (freehand) | 'points' (polygon)
   const canvasApi = useRef(null)
 
   useEffect(() => {
@@ -57,6 +58,7 @@ export default function App() {
         gap={gap} setGap={setGap}
         tension={tension} setTension={setTension}
         mode={mode} setMode={setMode}
+        drawTool={drawTool} setDrawTool={setDrawTool}
         style={style} setStyle={setStyle}
         shape={shape} setShape={setShape}
         cornerRadius={cornerRadius} setCornerRadius={setCornerRadius}
@@ -91,6 +93,7 @@ export default function App() {
           cols={cols} rows={rows} cellSize={cellSize} gap={gap}
           shape={shape} tension={tension} style={style}
           cornerRadius={cornerRadius} mode={mode} blob={blob}
+          drawTool={drawTool}
           hideGuides={hideGuides} editMode={editMode} theme={darkMode ? 'dark' : 'light'}
           leftInset={330}
         />

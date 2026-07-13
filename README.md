@@ -94,6 +94,10 @@ assets/                    # reference images
   the ink fill so they read as one shape, follow the Pin shape (rounded squares in Square mode), the
   hovered pin fills solid accent yellow (armed pin too), and clicking an armed pin again removes it
   and its links.
+- **Path** (Draw only) — **Freehand** (click-and-drag a stroke) or **Points** (a polygon/pen tool:
+  click vertices joined by straight edges with a dashed rubber-band preview; close by clicking the
+  first vertex or double-clicking, **Esc** cancels). Either way the closed loop becomes a shrink-wrap
+  rope.
 - **Blob spread** (Paint only) — tunes the metaball connection neck (low = thin, high = fat bridge);
   it is the `v` (contact-point spread) parameter, the more visible of the two metaball knobs.
 - **Style** — Filled (blob) or Outline (line); switching crossfades the rope's opacity.
