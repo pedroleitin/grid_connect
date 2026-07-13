@@ -94,7 +94,7 @@ assets/                    # reference images
   the ink fill so they read as one shape, follow the Pin shape (rounded squares in Square mode), the
   hovered pin fills solid accent yellow (armed pin too), and clicking an armed pin again removes it
   and its links.
-- **Path** (Draw only) — **Freehand** (click-and-drag a stroke) or **Points** (a polygon/pen tool:
+- **Line** (Draw only) — **Freehand** (click-and-drag a stroke) or **Points** (a polygon/pen tool:
   click vertices joined by straight edges with a dashed rubber-band preview; close by clicking the
   first vertex or double-clicking, **Esc** cancels). Either way the closed loop becomes a shrink-wrap
   rope.
@@ -109,8 +109,9 @@ assets/                    # reference images
 - **Hide guides** — draw without the pin dots showing (animated fade).
 - **Edit sizes** — resize each circle independently by dragging its edge handle.
 - **Undo / Redo** — floating icon buttons at the bottom-left of the canvas; **Clear** in the sidebar.
-- **Keyboard shortcuts** (badges shown next to each label): **M** Mode, **S** Style, **P** Pin,
-  **H** Hide guides, **E** Edit sizes, **C** Clear, **R** Reset, **Ctrl/Cmd+Z** Undo (**Shift** Redo).
+- **Keyboard shortcuts** (badges shown next to each label): **M** Mode, **L** Line, **S** Style,
+  **P** Pin, **H** Hide guides, **E** Edit sizes, **C** Clear, **R** Reset, **Ctrl/Cmd+Z** Undo
+  (**Shift** Redo).
   Hold **Shift** and hover a pin to temporarily engage Edit sizes (resize/ignore) without toggling it.
 - **Export SVG / PNG** — icon buttons centered at the bottom of the canvas.
 

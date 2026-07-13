@@ -5,7 +5,8 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Added
-- **Points path tool** (Draw mode only): a new **Path → Freehand/Points** toggle. **Freehand** is the
+- **Points path tool** (Draw mode only): a new **Line → Freehand/Points** toggle (shortcut **L**).
+  **Freehand** is the
   existing click-and-drag stroke; **Points** is a polygon/pen tool — click to drop vertices connected
   by straight edges (a dashed rubber-band previews the next segment), then close the loop by clicking
   the first vertex again or double-clicking. **Esc** cancels an in-progress polygon. The closed loop

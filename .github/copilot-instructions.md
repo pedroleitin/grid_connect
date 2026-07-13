@@ -27,7 +27,7 @@ or ignored (Edit sizes). Exports SVG/PNG.
   state, to avoid re-rendering per point or losing the drawing. Props sync `cfgRef` in an effect.
 - **Input via Pointer Events** (`pointerdown/move/up`, `setPointerCapture`, coords via
   `getBoundingClientRect`). Do NOT use `p.mouseX/mouseY` (produces spurious points in real drags).
-- **Path tool** (`drawTool`/`drawToolRef`, `'free'|'points'`, Draw mode only; **Path** segmented).
+- **Path tool** (`drawTool`/`drawToolRef`, `'free'|'points'`, Draw mode only; **Line** segmented, kbd **L**).
   `'free'` = freehand `curRef` stroke; `'points'` = polygon/pen: `pointsDown` fills `polyRef` (world
   pts), `polyCursorRef` = rubber-band, `closePolygon()` on first-vertex click (len≥3) or `dblclick`
   (`polyClosedAtRef` guards the stray second down), `polyNearFirst` sets cursor, **Esc** cancels;
@@ -75,7 +75,8 @@ or ignored (Edit sizes). Exports SVG/PNG.
   ink)` and both exports include the blobs. Filled ropes/exports carry a matching `stroke`; the style
   crossfade uses `easeInOut` (fast).
 - **Keyboard shortcuts** (App `keydown`, ignores form fields): **M/S/P** toggle Mode/Style/Pin,
-  **H/E** toggle Hide guides/Edit, **C** Clear, **R** Reset, **Ctrl/Cmd+Z** Undo (**Shift** Redo).
+  **L** toggle Line (Freehand/Points), **H/E** toggle Hide guides/Edit, **C** Clear, **R** Reset,
+  **Ctrl/Cmd+Z** Undo (**Shift** Redo).
   Labels show a `Kbd` badge (`.kbd`); segmented controls are **140px** with equal-width options.
   Holding **Shift** (GridCanvas `shiftRef`) makes `isEdit()` true — a transient Edit-sizes override
   while hovering a pin (recomputes hover from `lastEvtRef`; clears on keyup).

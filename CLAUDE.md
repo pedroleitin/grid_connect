@@ -31,7 +31,7 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
   - **Pointer input** (`pointerdown/move/up` + `setPointerCapture`, coords via
     `getBoundingClientRect`). Do NOT use `p.mouseX/mouseY` (it reported spurious points at (0,0)
     in real drags → "fan of lines").
-  - **Path tool** (`drawTool`/`drawToolRef`, `'free'|'points'`, Draw mode only; **Path** segmented in
+  - **Path tool** (`drawTool`/`drawToolRef`, `'free'|'points'`, Draw mode only; **Line** segmented in
     the sidebar). `'free'` is the freehand `curRef` stroke. `'points'` is a polygon/pen tool:
     `pointsDown(w)` drops vertices into `polyRef` (grid-agnostic world pts), `polyCursorRef` drives the
     dashed rubber-band, close via `closePolygon()` (click first vertex when len≥3, or `dblclick`;
@@ -94,8 +94,9 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
   actions `{kind:'rope'|'paint', ...}` (paint removals use an `inverse` flag); `buildSVG` takes
   `(ropes, paint, cfg, ink)` and both exports include the blobs. Filled ropes/exports carry a
   matching `stroke`; the style crossfade uses `easeInOut` (fast).
-- **Keyboard shortcuts** (App-level `keydown` effect, ignores form fields): **M** Mode, **S** Style,
-  **P** Pin, **H** Hide guides, **E** Edit sizes, **C** Clear, **R** Reset, **Ctrl/Cmd+Z** Undo
+- **Keyboard shortcuts** (App-level `keydown` effect, ignores form fields): **M** Mode, **L** Line,
+  **S** Style, **P** Pin, **H** Hide guides, **E** Edit sizes, **C** Clear, **R** Reset,
+  **Ctrl/Cmd+Z** Undo
   (**Shift** Redo). Each label shows a `Kbd` badge (`.kbd` in `index.css`); segmented controls are a
   fixed **140px** with equal-width options. Holding **Shift** sets `shiftRef` in `GridCanvas`, which
   makes `isEdit()` (`editModeRef || shiftRef`) true — a transient Edit-sizes override while hovering a

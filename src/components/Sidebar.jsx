@@ -155,7 +155,7 @@ export default function Sidebar({
         <div className={`collapse-row${mode === 'draw' ? ' collapse-row--open' : ''}`}>
           <div>
             <Segmented
-              label="Path" value={drawTool} onChange={setDrawTool}
+              label="Line" value={drawTool} onChange={setDrawTool} kbd="l"
               options={[{ value: 'free', label: 'Freehand' }, { value: 'points', label: 'Points' }]}
             />
           </div>
