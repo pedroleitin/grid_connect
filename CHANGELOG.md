@@ -10,6 +10,8 @@ All notable changes to this project. Newest first.
   (formerly the "Edit sizes" toggle); **Path** is the rope-reshape mode (formerly Mode → Edit).
   **Mode** is back to a two-way **Draw / Paint** toggle. Moving a whole rope in **Path** now re-seeds
   it from its translated loop on release, so it deterministically re-wraps the pins now under it.
+  The **Line** control now sits above **Mode** in the sidebar, and the rope being reshaped in **Path**
+  renders at 50% fill so you can see the pins under it.
 
 ### Added
 - **Path editing** (Edit → **Path**): reshape a rope after drawing it. Click a rope to select it
