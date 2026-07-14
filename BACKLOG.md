@@ -13,8 +13,9 @@
 - [ ] **Erase** tool: remove drawn ropes (or parts of them) directly on the canvas.
 - [ ] **Presets**: save/load named configurations (grid, sizes, style, mode, drawings).
 - [ ] **History dock**: a dock of thumbnail previews of previously made drawings, to revisit/restore.
-- [ ] **Edit drawing**: reshape an existing rope/loop — drag it to move, extend it to another
-  region, or make it wrap a different pin.
+- [x] **Edit drawing** (Mode → Edit): reshape an existing rope — click it to select (dashed
+  outline + vertex handles), drag its interior/outline to move the whole loop (re-wraps whatever
+  pins are now underneath), or drag a vertex handle to reshape. Undo/redo covers edits.
 - [x] **Points path tool** (Line → Freehand/Points, shortcut **L**): a polygon/pen alternative to freehand
   drawing — click vertices joined by straight edges (dashed rubber-band preview), close by
   clicking the first vertex or double-clicking; **Esc** cancels. Closed loops become normal

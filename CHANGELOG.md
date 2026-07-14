@@ -5,6 +5,10 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Added
+- **Edit drawing** (Mode → **Edit**): reshape a rope after drawing it. Click a rope to select it
+  (dashed outline + vertex handles appear); drag its interior/outline to move the whole loop — it
+  re-wraps whatever pins are now underneath — or drag a vertex handle to reshape it. Undo/redo covers
+  every edit. Mode is now a three-way toggle (Draw / Paint / Edit); **M** cycles through them.
 - **Points path tool** (Draw mode only): a new **Line → Freehand/Points** toggle (shortcut **L**).
   **Freehand** is the
   existing click-and-drag stroke; **Points** is a polygon/pen tool — click to drop vertices connected

@@ -15,7 +15,7 @@ export default function App() {
   const [hideGuides, setHideGuides] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
-  const [mode, setMode] = useState('draw')       // 'draw' (rope) | 'paint' (blob connect)
+  const [mode, setMode] = useState('draw')       // 'draw' (rope) | 'paint' (blob) | 'edit' (reshape)
   const [drawTool, setDrawTool] = useState('points') // 'points' (polygon) | 'free' (freehand)
   const canvasApi = useRef(null)
 
@@ -35,7 +35,7 @@ export default function App() {
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return
       switch (e.key.toLowerCase()) {
-        case 'm': setMode((v) => (v === 'draw' ? 'paint' : 'draw')); break
+        case 'm': setMode((v) => (v === 'draw' ? 'paint' : v === 'paint' ? 'edit' : 'draw')); break
         case 'l': setDrawTool((v) => (v === 'free' ? 'points' : 'free')); break
         case 's': setStyle((v) => (v === 'fill' ? 'stroke' : 'fill')); break
         case 'p': setShape((v) => (v === 'circle' ? 'square' : 'circle')); break

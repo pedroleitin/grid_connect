@@ -39,6 +39,16 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
     **Esc** cancels. `closePolygon` appends `poly[0]` to seal the seam, then `seedJoints(pts,10)` → a
     normal shrink-wrap rope (`loop` in grid coords, same as freehand). Anything referenced in `p.draw`
     must be inlined or outer-scoped — helpers defined inside `p.setup` are NOT visible in `p.draw`.
+  - **Edit drawing** (`mode='edit'`, distinct from the `editMode`/`editModeRef` "Edit sizes" toggle):
+    reshape a settled rope. `editRopeRef` = selected rope, `editDragRef` = active drag. `editDown`
+    hit-tests: a loop vertex of the selected rope (`vertexIndexAt`, handles only for loops ≤
+    `EDIT_HANDLE_MAX`), else the topmost rope under the cursor (`ropeAt` = `pointInPoly` on `joints`
+    OR near an edge via `distToPolyEdges`) → selects + starts a **move** drag; empty space deselects.
+    `editMove` **move** translates all `joints` (live, smooth) and the `loop` (grid coords) by the
+    cursor delta so the rope re-wraps whatever pins are now under it; **vertex** rewrites `loop[i]`
+    (mirroring the closed seam) then `reseedRope`. `editUp` pushes `{kind:'edit', rope, before, after}`
+    (loop snapshots); `applyAction` restores the loop and `reseedRope`s. `p.draw` renders the selected
+    rope's dashed outline + vertex handles (inline math — no `p.setup` helpers).
   - **Pan/zoom** is a render-only view transform in `viewRef` (`{scale, tx, ty}`; screen = world *
     scale + t). Physics and export stay in **world coords**, so zoom never affects the SVG/PNG.
     The canvas spans the **full viewport** (behind the opaque sidebar); a `leftInset` prop (the

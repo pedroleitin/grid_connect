@@ -33,6 +33,14 @@ or ignored (Edit sizes). Exports SVG/PNG.
   (`polyClosedAtRef` guards the stray second down), `polyNearFirst` sets cursor, **Esc** cancels;
   `closePolygon` seals the seam then `seedJoints(pts,10)` → normal rope. Helpers defined in `p.setup`
   are NOT visible in `p.draw` — inline or outer-scope anything used in `p.draw`.
+- **Edit drawing** (`mode='edit'`, NOT the `editModeRef` "Edit sizes" toggle): reshape a settled rope.
+  `editRopeRef`=selection, `editDragRef`=active drag. `editDown` hits a loop vertex of the selected
+  rope (`vertexIndexAt`, handles for loops ≤ `EDIT_HANDLE_MAX`) else the topmost rope under the cursor
+  (`ropeAt` = `pointInPoly` on `joints` OR near edge via `distToPolyEdges`) → move drag; empty
+  deselects. `editMove` move = translate `joints` + `loop` by the cursor delta (re-wraps pins now
+  underneath); vertex = rewrite `loop[i]` (mirror closed seam) then `reseedRope`. `editUp` pushes
+  `{kind:'edit', rope, before, after}` (loop snapshots); `applyAction` restores + `reseedRope`s.
+  Mode is a 3-way segmented (Draw/Paint/Edit); **M** cycles it.
 - **Pan/zoom** is a render-only view transform in `viewRef` (`{scale, tx, ty}`); physics and export
   stay in world coords so zoom never affects the SVG/PNG. The canvas spans the **full viewport**
   behind the opaque sidebar; a `leftInset` prop keeps `fit()`/zoom centered on the visible area so

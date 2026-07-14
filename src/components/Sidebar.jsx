@@ -91,10 +91,6 @@ function Checkbox({ label, checked, onChange, kbd }) {
 }
 
 function Segmented({ label, options, value, onChange, kbd }) {
-  const toggle = () => {
-    const other = options.find((o) => o.value !== value)
-    if (other) onChange(other.value)
-  }
   return (
     <Row>
       <div className="px-5 py-3 flex items-center justify-between gap-3">
@@ -103,7 +99,7 @@ function Segmented({ label, options, value, onChange, kbd }) {
           {options.map((o) => (
             <button
               key={o.value}
-              onClick={toggle}
+              onClick={() => onChange(o.value)}
               className={'seg-opt' + (value === o.value ? ' active' : '')}
             >
               {o.label}
@@ -150,7 +146,7 @@ export default function Sidebar({
 
         <Segmented
           label="Mode" value={mode} onChange={setMode} kbd="m"
-          options={[{ value: 'draw', label: 'Draw' }, { value: 'paint', label: 'Paint' }]}
+          options={[{ value: 'draw', label: 'Draw' }, { value: 'paint', label: 'Paint' }, { value: 'edit', label: 'Edit' }]}
         />
         <div className={`collapse-row${mode === 'draw' ? ' collapse-row--open' : ''}`}>
           <div>

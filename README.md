@@ -88,12 +88,14 @@ assets/                    # reference images
 - **Spacing** — gap between containers (grows the canvas so nothing is clipped).
 - **Rope tension** — settle tightness (100 = loose/round wrap, 200 = tight/glued to the circles);
   shown only in Draw mode.
-- **Mode** — **Draw** (the elastic rope) or **Paint**. In Paint mode you connect neighboring pins
+- **Mode** — **Draw** (the elastic rope), **Paint**, or **Edit**. In Paint mode you connect neighboring pins
   with smooth **metaball blob** bridges (8-way adjacency, never skipping a cell): drag the cursor
   across pins, or click one pin then click a neighbor (chains from the last). Nodes and bridges share
   the ink fill so they read as one shape, follow the Pin shape (rounded squares in Square mode), the
   hovered pin fills solid accent yellow (armed pin too), and clicking an armed pin again removes it
-  and its links.
+  and its links. In **Edit** mode you reshape a drawn rope: click it to select (a dashed outline and
+  vertex handles appear), drag its interior/outline to move the whole loop so it re-wraps whatever
+  pins are now underneath, or drag a vertex handle to reshape it (undo/redo covers every edit).
 - **Line** (Draw only) — **Freehand** (click-and-drag a stroke) or **Points** (a polygon/pen tool:
   click vertices joined by straight edges with a dashed rubber-band preview; close by clicking the
   first vertex or double-clicking, **Esc** cancels). Either way the closed loop becomes a shrink-wrap
