@@ -11,6 +11,10 @@
   (flat edges, softly rounded corners matching the guide), so the wrap follows the square shape.
   A **Corner radius** slider (20–100%) controls the rounding of both guides and the rope contour.
 - [ ] **Erase** tool: remove drawn ropes (or parts of them) directly on the canvas.
+- [ ] **Presets**: save/load named configurations (grid, sizes, style, mode, drawings).
+- [ ] **History dock**: a dock of thumbnail previews of previously made drawings, to revisit/restore.
+- [ ] **Edit drawing**: reshape an existing rope/loop — drag it to move, extend it to another
+  region, or make it wrap a different pin.
 - [x] **Points path tool** (Line → Freehand/Points, shortcut **L**): a polygon/pen alternative to freehand
   drawing — click vertices joined by straight edges (dashed rubber-band preview), close by
   clicking the first vertex or double-clicking; **Esc** cancels. Closed loops become normal
