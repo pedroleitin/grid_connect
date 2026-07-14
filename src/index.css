@@ -118,8 +118,8 @@ body { margin: 0; font-family: var(--font-sans); color: var(--c-text); backgroun
   display: inline-flex; align-items: center; justify-content: center;
   width: 1.35em; height: 1.35em; margin-left: 6px; padding: 0;
   font-family: var(--font-mono, monospace); font-size: 0.82em; font-weight: 600; line-height: 1;
-  color: var(--c-text); border: 1px solid var(--c-line-strong); border-radius: 4px;
-  background: color-mix(in srgb, var(--c-line) 18%, transparent);
+  color: var(--c-text); border: none; border-radius: 4px;
+  background: color-mix(in srgb, var(--c-line) 45%, transparent);
   opacity: 0.75; text-transform: uppercase;
 }
 
