@@ -88,14 +88,12 @@ assets/                    # reference images
 - **Spacing** — gap between containers (grows the canvas so nothing is clipped).
 - **Rope tension** — settle tightness (100 = loose/round wrap, 200 = tight/glued to the circles);
   shown only in Draw mode.
-- **Mode** — **Draw** (the elastic rope), **Paint**, or **Edit**. In Paint mode you connect neighboring pins
+- **Mode** — **Draw** (the elastic rope) or **Paint**. In Paint mode you connect neighboring pins
   with smooth **metaball blob** bridges (8-way adjacency, never skipping a cell): drag the cursor
   across pins, or click one pin then click a neighbor (chains from the last). Nodes and bridges share
   the ink fill so they read as one shape, follow the Pin shape (rounded squares in Square mode), the
   hovered pin fills solid accent yellow (armed pin too), and clicking an armed pin again removes it
-  and its links. In **Edit** mode you reshape a drawn rope: click it to select (a dashed outline and
-  vertex handles appear), drag its interior/outline to move the whole loop so it re-wraps whatever
-  pins are now underneath, or drag a vertex handle to reshape it (undo/redo covers every edit).
+  and its links.
 - **Line** (Draw only) — **Freehand** (click-and-drag a stroke) or **Points** (a polygon/pen tool:
   click vertices joined by straight edges with a dashed rubber-band preview; close by clicking the
   first vertex or double-clicking, **Esc** cancels). Either way the closed loop becomes a shrink-wrap
@@ -108,13 +106,17 @@ assets/                    # reference images
 - **Corner radius** (Square only) — 20–100% control for the squares' corner rounding, driving both
   the guides and the rope contour (20% = mild rounding, 100% = fully rounded); the slider slides
   and fades in/out when toggling the Pin shape.
+- **Edit** — **Off** / **Sizes** / **Path**. **Sizes** resizes each circle independently by dragging
+  its edge handle (click the center X to ignore a pin). **Path** reshapes a drawn rope: click it to
+  select (a dashed outline and vertex handles appear), drag its interior/outline to move the whole
+  loop so it re-wraps whatever pins are now underneath, or drag a vertex handle to reshape it
+  (undo/redo covers every edit).
 - **Hide guides** — draw without the pin dots showing (animated fade).
-- **Edit sizes** — resize each circle independently by dragging its edge handle.
 - **Undo / Redo** — floating icon buttons at the bottom-left of the canvas; **Clear** in the sidebar.
 - **Keyboard shortcuts** (badges shown next to each label): **M** Mode, **L** Line, **S** Style,
-  **P** Pin, **H** Hide guides, **E** Edit sizes, **C** Clear, **R** Reset, **Ctrl/Cmd+Z** Undo
-  (**Shift** Redo).
-  Hold **Shift** and hover a pin to temporarily engage Edit sizes (resize/ignore) without toggling it.
+  **P** Pin, **E** Edit (Off→Sizes→Path), **H** Hide guides, **C** Clear, **R** Reset,
+  **Ctrl/Cmd+Z** Undo (**Shift** Redo).
+  Hold **Shift** and hover a pin to temporarily engage size editing (resize/ignore) without toggling it.
 - **Export SVG / PNG** — icon buttons centered at the bottom of the canvas.
 
 ## Export

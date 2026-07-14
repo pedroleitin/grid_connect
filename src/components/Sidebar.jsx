@@ -90,12 +90,12 @@ function Checkbox({ label, checked, onChange, kbd }) {
   )
 }
 
-function Segmented({ label, options, value, onChange, kbd }) {
+function Segmented({ label, options, value, onChange, kbd, width }) {
   return (
     <Row>
       <div className="px-5 py-3 flex items-center justify-between gap-3">
         <Label kbd={kbd}>{label}</Label>
-        <div className="seg">
+        <div className="seg" style={width ? { width } : undefined}>
           {options.map((o) => (
             <button
               key={o.value}
@@ -116,7 +116,7 @@ export default function Sidebar({
   tension, setTension, mode, setMode, style, setStyle, shape, setShape,
   cornerRadius, setCornerRadius, blob, setBlob, drawTool, setDrawTool,
   hideGuides, setHideGuides,
-  editMode, setEditMode,
+  editTool, setEditTool,
   onClear, onResetCircles,
 }) {
   return (
@@ -146,7 +146,7 @@ export default function Sidebar({
 
         <Segmented
           label="Mode" value={mode} onChange={setMode} kbd="m"
-          options={[{ value: 'draw', label: 'Draw' }, { value: 'paint', label: 'Paint' }, { value: 'edit', label: 'Edit' }]}
+          options={[{ value: 'draw', label: 'Draw' }, { value: 'paint', label: 'Paint' }]}
         />
         <div className={`collapse-row${mode === 'draw' ? ' collapse-row--open' : ''}`}>
           <div>
@@ -169,8 +169,11 @@ export default function Sidebar({
             <Slider label="Corner radius" min={20} max={100} value={cornerRadius} suffix="%" onChange={setCornerRadius} />
           </div>
         </div>
+        <Segmented
+          label="Edit" value={editTool} onChange={setEditTool} kbd="e" width={210}
+          options={[{ value: 'off', label: 'Off' }, { value: 'sizes', label: 'Sizes' }, { value: 'path', label: 'Path' }]}
+        />
         <Checkbox label="Hide guides" checked={hideGuides} onChange={setHideGuides} kbd="h" />
-        <Checkbox label="Edit sizes" checked={editMode} onChange={setEditMode} kbd="e" />
 
         <p className="px-5 py-3 mt-auto text-[11px] leading-relaxed" style={{ color: 'var(--c-text)', opacity: 0.5 }}>
           Draw a loop anywhere on the canvas around the circles you want to wrap — an elastic

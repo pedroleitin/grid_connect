@@ -39,16 +39,19 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
     **Esc** cancels. `closePolygon` appends `poly[0]` to seal the seam, then `seedJoints(pts,10)` → a
     normal shrink-wrap rope (`loop` in grid coords, same as freehand). Anything referenced in `p.draw`
     must be inlined or outer-scoped — helpers defined inside `p.setup` are NOT visible in `p.draw`.
-  - **Edit drawing** (`mode='edit'`, distinct from the `editMode`/`editModeRef` "Edit sizes" toggle):
+  - **Path editing** (`mode='edit'`, driven by the **Edit → Path** control; `editModeRef`/`editMode`
+    is the **Edit → Sizes** circle-resize tool — both fed from App's `editTool` `'off'|'sizes'|'path'`,
+    mapped to `mode={editTool==='path'?'edit':mode}` and `editMode={editTool==='sizes'}`):
     reshape a settled rope. `editRopeRef` = selected rope, `editDragRef` = active drag. `editDown`
     hit-tests: a loop vertex of the selected rope (`vertexIndexAt`, handles only for loops ≤
     `EDIT_HANDLE_MAX`), else the topmost rope under the cursor (`ropeAt` = `pointInPoly` on `joints`
     OR near an edge via `distToPolyEdges`) → selects + starts a **move** drag; empty space deselects.
     `editMove` **move** translates all `joints` (live, smooth) and the `loop` (grid coords) by the
-    cursor delta so the rope re-wraps whatever pins are now under it; **vertex** rewrites `loop[i]`
-    (mirroring the closed seam) then `reseedRope`. `editUp` pushes `{kind:'edit', rope, before, after}`
-    (loop snapshots); `applyAction` restores the loop and `reseedRope`s. `p.draw` renders the selected
-    rope's dashed outline + vertex handles (inline math — no `p.setup` helpers).
+    cursor delta; **vertex** rewrites `loop[i]` (mirroring the closed seam) then `reseedRope`. `editUp`
+    **re-seeds a moved rope from its translated `loop`** (so it deterministically re-wraps the pins now
+    under it instead of snapping back), then pushes `{kind:'edit', rope, before, after}` (loop
+    snapshots); `applyAction` restores the loop and `reseedRope`s. `p.draw` renders the selected rope's
+    dashed outline + vertex handles (inline math — no `p.setup` helpers).
   - **Pan/zoom** is a render-only view transform in `viewRef` (`{scale, tx, ty}`; screen = world *
     scale + t). Physics and export stay in **world coords**, so zoom never affects the SVG/PNG.
     The canvas spans the **full viewport** (behind the opaque sidebar); a `leftInset` prop (the
@@ -104,11 +107,12 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
   actions `{kind:'rope'|'paint', ...}` (paint removals use an `inverse` flag); `buildSVG` takes
   `(ropes, paint, cfg, ink)` and both exports include the blobs. Filled ropes/exports carry a
   matching `stroke`; the style crossfade uses `easeInOut` (fast).
-- **Keyboard shortcuts** (App-level `keydown` effect, ignores form fields): **M** Mode, **L** Line,
-  **S** Style, **P** Pin, **H** Hide guides, **E** Edit sizes, **C** Clear, **R** Reset,
-  **Ctrl/Cmd+Z** Undo
+- **Keyboard shortcuts** (App-level `keydown` effect, ignores form fields): **M** Mode (Draw/Paint),
+  **L** Line, **S** Style, **P** Pin, **E** Edit (cycles Off→Sizes→Path), **H** Hide guides,
+  **C** Clear, **R** Reset, **Ctrl/Cmd+Z** Undo
   (**Shift** Redo). Each label shows a `Kbd` badge (`.kbd` in `index.css`); segmented controls are a
-  fixed **140px** with equal-width options. Holding **Shift** sets `shiftRef` in `GridCanvas`, which
+  fixed **140px** with equal-width options (the **Edit** segmented uses a `width={210}` override).
+  Holding **Shift** sets `shiftRef` in `GridCanvas`, which
   makes `isEdit()` (`editModeRef || shiftRef`) true — a transient Edit-sizes override while hovering a
   pin (recomputes hover from `lastEvtRef` on keydown; clears hover/drag + resets cursor on keyup).
 - **StrictMode:** the mount effect creates/cleans up the p5 (`p5Ref.current.remove()`). Do not create

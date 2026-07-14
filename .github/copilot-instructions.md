@@ -3,7 +3,7 @@
 A generative grid drawing tool: the user draws a loop around the circles and an
 **elastic rope** shrink-wraps tightly around them (Rogo style). The canvas fills the whole
 viewport (content pans/zooms under the sidebar, uncropped); circles can be resized independently
-or ignored (Edit sizes). Exports SVG/PNG.
+or ignored (Edit → Sizes). Exports SVG/PNG.
 
 ## Stack
 
@@ -33,14 +33,17 @@ or ignored (Edit sizes). Exports SVG/PNG.
   (`polyClosedAtRef` guards the stray second down), `polyNearFirst` sets cursor, **Esc** cancels;
   `closePolygon` seals the seam then `seedJoints(pts,10)` → normal rope. Helpers defined in `p.setup`
   are NOT visible in `p.draw` — inline or outer-scope anything used in `p.draw`.
-- **Edit drawing** (`mode='edit'`, NOT the `editModeRef` "Edit sizes" toggle): reshape a settled rope.
+- **Path editing** (`mode='edit'`, from the **Edit → Path** control; **Edit → Sizes** is `editModeRef`
+  circle-resize — App keeps a single `editTool` `'off'|'sizes'|'path'` mapped to
+  `mode={editTool==='path'?'edit':mode}` + `editMode={editTool==='sizes'}`): reshape a settled rope.
   `editRopeRef`=selection, `editDragRef`=active drag. `editDown` hits a loop vertex of the selected
   rope (`vertexIndexAt`, handles for loops ≤ `EDIT_HANDLE_MAX`) else the topmost rope under the cursor
   (`ropeAt` = `pointInPoly` on `joints` OR near edge via `distToPolyEdges`) → move drag; empty
-  deselects. `editMove` move = translate `joints` + `loop` by the cursor delta (re-wraps pins now
-  underneath); vertex = rewrite `loop[i]` (mirror closed seam) then `reseedRope`. `editUp` pushes
-  `{kind:'edit', rope, before, after}` (loop snapshots); `applyAction` restores + `reseedRope`s.
-  Mode is a 3-way segmented (Draw/Paint/Edit); **M** cycles it.
+  deselects. `editMove` move = translate `joints` + `loop` by the cursor delta; vertex = rewrite
+  `loop[i]` (mirror closed seam) then `reseedRope`. `editUp` **re-seeds a moved rope from its
+  translated `loop`** (deterministic re-wrap) then pushes `{kind:'edit', rope, before, after}` (loop
+  snapshots); `applyAction` restores + `reseedRope`s. Mode is a 2-way segmented (Draw/Paint); **M**
+  toggles it. **Edit** is a separate 3-way segmented (Off/Sizes/Path, `width={210}`); **E** cycles it.
 - **Pan/zoom** is a render-only view transform in `viewRef` (`{scale, tx, ty}`); physics and export
   stay in world coords so zoom never affects the SVG/PNG. The canvas spans the **full viewport**
   behind the opaque sidebar; a `leftInset` prop keeps `fit()`/zoom centered on the visible area so
@@ -83,9 +86,11 @@ or ignored (Edit sizes). Exports SVG/PNG.
   ink)` and both exports include the blobs. Filled ropes/exports carry a matching `stroke`; the style
   crossfade uses `easeInOut` (fast).
 - **Keyboard shortcuts** (App `keydown`, ignores form fields): **M/S/P** toggle Mode/Style/Pin,
-  **L** toggle Line (Freehand/Points), **H/E** toggle Hide guides/Edit, **C** Clear, **R** Reset,
+  **L** toggle Line (Freehand/Points), **E** cycle Edit (Off→Sizes→Path), **H** toggle Hide guides,
+  **C** Clear, **R** Reset,
   **Ctrl/Cmd+Z** Undo (**Shift** Redo).
-  Labels show a `Kbd` badge (`.kbd`); segmented controls are **140px** with equal-width options.
+  Labels show a `Kbd` badge (`.kbd`); segmented controls are **140px** with equal-width options
+  (Edit uses `width={210}`).
   Holding **Shift** (GridCanvas `shiftRef`) makes `isEdit()` true — a transient Edit-sizes override
   while hovering a pin (recomputes hover from `lastEvtRef`; clears on keyup).
 - UI language and comments: **English**. Smallest change that respects the existing style.

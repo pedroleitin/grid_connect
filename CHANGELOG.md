@@ -4,11 +4,18 @@ All notable changes to this project. Newest first.
 
 ## Unreleased
 
+### Changed
+- **Unified Edit control**: the edit tools are now one **Edit** segmented (**Off / Sizes / Path**,
+  shortcut **E** cycles them) placed above **Hide guides**. **Sizes** is the per-circle resize
+  (formerly the "Edit sizes" toggle); **Path** is the rope-reshape mode (formerly Mode → Edit).
+  **Mode** is back to a two-way **Draw / Paint** toggle. Moving a whole rope in **Path** now re-seeds
+  it from its translated loop on release, so it deterministically re-wraps the pins now under it.
+
 ### Added
-- **Edit drawing** (Mode → **Edit**): reshape a rope after drawing it. Click a rope to select it
+- **Path editing** (Edit → **Path**): reshape a rope after drawing it. Click a rope to select it
   (dashed outline + vertex handles appear); drag its interior/outline to move the whole loop — it
   re-wraps whatever pins are now underneath — or drag a vertex handle to reshape it. Undo/redo covers
-  every edit. Mode is now a three-way toggle (Draw / Paint / Edit); **M** cycles through them.
+  every edit.
 - **Points path tool** (Draw mode only): a new **Line → Freehand/Points** toggle (shortcut **L**).
   **Freehand** is the
   existing click-and-drag stroke; **Points** is a polygon/pen tool — click to drop vertices connected
@@ -16,9 +23,9 @@ All notable changes to this project. Newest first.
   the first vertex again or double-clicking. **Esc** cancels an in-progress polygon. The closed loop
   becomes a normal shrink-wrap rope (same physics/export).
 - **Keyboard shortcuts** with on-screen badges (an uppercase letter in a small rounded square next to
-  each label): **M** Mode, **S** Style, **P** Pin, **H** Hide guides, **E** Edit sizes, **C** Clear,
+  each label): **M** Mode, **S** Style, **P** Pin, **E** Edit, **H** Hide guides, **C** Clear,
   **R** Reset, **Ctrl/Cmd+Z** Undo (**Shift** to Redo). Also, holding **Shift** while hovering a pin
-  temporarily engages Edit sizes (resize/ignore) without flipping the toggle.
+  temporarily engages size editing (resize/ignore) without flipping the toggle.
 - **Blob spread** slider (Paint mode only): tunes the metaball connection neck — one of the two
   metaball parameters (`v`, the contact-point spread; the other is the fixed handle length). Low =
   thin neck, high = fat bridge.

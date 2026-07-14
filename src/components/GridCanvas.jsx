@@ -438,6 +438,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           const d = editDragRef.current
           editDragRef.current = null
           if (!d) return
+          // re-seed a moved rope from its (translated) loop so it settles
+          // deterministically around the pins now under it, instead of the
+          // live-translated ring snapping back to the original pins.
+          if (d.kind === 'move') { reseedRope(d.rope, cfgRef.current); wake() }
           const after = d.rope.loop.map((g) => ({ ...g }))
           const changed = d.before.length !== after.length ||
             d.before.some((g, i) => g.gx !== after[i].gx || g.gy !== after[i].gy)

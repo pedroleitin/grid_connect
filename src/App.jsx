@@ -13,9 +13,9 @@ export default function App() {
   const [cornerRadius, setCornerRadius] = useState(36) // square corner radius (% of half-size)
   const [blob, setBlob] = useState(50)          // paint connection spread (metaball v, %)
   const [hideGuides, setHideGuides] = useState(false)
-  const [editMode, setEditMode] = useState(false)
+  const [editTool, setEditTool] = useState('off')  // 'off' | 'sizes' (circle sizes) | 'path' (reshape ropes)
   const [darkMode, setDarkMode] = useState(false)
-  const [mode, setMode] = useState('draw')       // 'draw' (rope) | 'paint' (blob) | 'edit' (reshape)
+  const [mode, setMode] = useState('draw')       // 'draw' (rope) | 'paint' (blob connect)
   const [drawTool, setDrawTool] = useState('points') // 'points' (polygon) | 'free' (freehand)
   const canvasApi = useRef(null)
 
@@ -35,12 +35,12 @@ export default function App() {
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return
       switch (e.key.toLowerCase()) {
-        case 'm': setMode((v) => (v === 'draw' ? 'paint' : v === 'paint' ? 'edit' : 'draw')); break
+        case 'm': setMode((v) => (v === 'draw' ? 'paint' : 'draw')); break
         case 'l': setDrawTool((v) => (v === 'free' ? 'points' : 'free')); break
         case 's': setStyle((v) => (v === 'fill' ? 'stroke' : 'fill')); break
         case 'p': setShape((v) => (v === 'circle' ? 'square' : 'circle')); break
         case 'h': setHideGuides((v) => !v); break
-        case 'e': setEditMode((v) => !v); break
+        case 'e': setEditTool((v) => (v === 'off' ? 'sizes' : v === 'sizes' ? 'path' : 'off')); break
         case 'c': canvasApi.current?.clear(); break
         case 'r': canvasApi.current?.resetCircles(); break
         default: return
@@ -65,7 +65,7 @@ export default function App() {
         cornerRadius={cornerRadius} setCornerRadius={setCornerRadius}
         blob={blob} setBlob={setBlob}
         hideGuides={hideGuides} setHideGuides={setHideGuides}
-        editMode={editMode} setEditMode={setEditMode}
+        editTool={editTool} setEditTool={setEditTool}
         onClear={() => canvasApi.current?.clear()}
         onResetCircles={() => canvasApi.current?.resetCircles()}
       />
@@ -93,9 +93,9 @@ export default function App() {
           ref={canvasApi}
           cols={cols} rows={rows} cellSize={cellSize} gap={gap}
           shape={shape} tension={tension} style={style}
-          cornerRadius={cornerRadius} mode={mode} blob={blob}
+          cornerRadius={cornerRadius} mode={editTool === 'path' ? 'edit' : mode} blob={blob}
           drawTool={drawTool}
-          hideGuides={hideGuides} editMode={editMode} theme={darkMode ? 'dark' : 'light'}
+          hideGuides={hideGuides} editMode={editTool === 'sizes'} theme={darkMode ? 'dark' : 'light'}
           leftInset={330}
         />
       </main>
