@@ -842,12 +842,12 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         if (!edit) drawGuides()
 
         // ropes — crossfade opacity when the style changes (fill <-> outline);
-        // dim the rope being edited to 50% while reshaping it in Path mode
+        // dim all ropes to 50% while in Path edit mode so the pins stay visible
         const sa = styleAnimRef.current
         if (sa.t < 1) sa.t = Math.min(1, sa.t + 0.12)
         const se = easeInOut(sa.t)
+        const ea = editDraw ? 0.5 : 1
         for (const rope of ropesRef.current) {
-          const ea = (editDraw && rope === editRopeRef.current) ? 0.5 : 1
           if (sa.t < 1) {
             drawRope(p, rope.joints, sa.from, COL, (1 - se) * ea)
             drawRope(p, rope.joints, cfg.style, COL, se * ea)
