@@ -22,10 +22,24 @@ function drawRope(g, joints, style, COL, alpha = 1) {
 
 /* render painted blobs: filled node circles + metaball bezier bridges (same
    solid fill, so overlaps read as one connected shape) */
-function drawPaint(g, nodes, edges, cfg, COL, alpha = 1) {
+function drawPaint(g, nodes, edges, cfg, COL, alpha = 1, colors = null) {
   if (!nodes || nodes.size === 0) return
   const ink = g.color(COL.ink); ink.setAlpha(255 * alpha)
-  g.noStroke(); g.fill(ink)
+  // each node inherits the color of the first connection touching it
+  const nodeCol = new Map()
+  if (colors) {
+    for (const key of edges) {
+      const c = colors.get(key); if (!c) continue
+      const [ka, kb] = key.split('|')
+      if (!nodeCol.has(ka)) nodeCol.set(ka, c)
+      if (!nodeCol.has(kb)) nodeCol.set(kb, c)
+    }
+  }
+  const fillFor = (css) => {
+    if (!css) return ink
+    const f = g.color(css); f.setAlpha(255 * alpha); return f
+  }
+  g.noStroke()
   for (const key of edges) {
     const [ka, kb] = key.split('|')
     const [ra, ca] = ka.split(',').map(Number)
@@ -33,6 +47,7 @@ function drawPaint(g, nodes, edges, cfg, COL, alpha = 1) {
     const m = bridge(cellCenter(ra, ca, cfg), sizeOf(cfg, ra, ca) / 2,
                      cellCenter(rb, cb, cfg), sizeOf(cfg, rb, cb) / 2, cfg)
     if (!m) continue
+    g.fill(fillFor(colors && colors.get(key)))
     g.beginShape()
     g.vertex(m.p1a.x, m.p1a.y)
     g.bezierVertex(m.ho0.x, m.ho0.y, m.hi1.x, m.hi1.y, m.p2a.x, m.p2a.y)
@@ -44,6 +59,7 @@ function drawPaint(g, nodes, edges, cfg, COL, alpha = 1) {
     const [r, c] = key.split(',').map(Number)
     const ct = cellCenter(r, c, cfg)
     const s = sizeOf(cfg, r, c)
+    g.fill(fillFor(nodeCol.get(key)))
     if (cfg.shape === 'square') {
       const cr01 = (cfg.cornerRadius ?? 36) / 100
       g.rect(ct.x - s / 2, ct.y - s / 2, s, s, (s / 2) * cr01)
@@ -84,6 +100,18 @@ const edgeKey = (a, b) => {
   return ka < kb ? ka + '|' + kb : kb + '|' + ka
 }
 
+// random pleasant color (fixed sat/lightness, random hue) as a hex string
+function randPaintColor() {
+  const h = Math.random() * 360, s = 0.68, l = 0.55
+  const a = s * Math.min(l, 1 - l)
+  const f = (n) => {
+    const k = (n + h / 30) % 12
+    const v = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))
+    return Math.round(255 * v).toString(16).padStart(2, '0')
+  }
+  return `#${f(0)}${f(8)}${f(4)}`
+}
+
 // smoothstep easing for animation progress (0..1)
 const easeInOut = (t) => t * t * (3 - 2 * t)
 
@@ -99,6 +127,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const ropesRef = useRef([])       // physics ropes: { loop, joints }
   const paintNodesRef = useRef(new Set())  // painted cells "r,c"
   const paintEdgesRef = useRef(new Set())  // painted links: sorted "ka|kb"
+  const paintColorsRef = useRef(new Map()) // per-link random color: "ka|kb" -> hex
   const paintDragRef = useRef(null)        // in-progress paint drag state
   const histRef = useRef([])        // unified undo stack: { kind, ... }
   const redoRef = useRef([])        // undone actions, for redo
@@ -461,7 +490,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             const lk = drag.last.r + ',' + drag.last.c
             if (!paintNodesRef.current.has(lk)) { paintNodesRef.current.add(lk); drag.addedNodes.push(lk) }
             const ek = edgeKey(drag.last, hit)
-            if (!paintEdgesRef.current.has(ek)) { paintEdgesRef.current.add(ek); drag.addedEdges.push(ek) }
+            if (!paintEdgesRef.current.has(ek)) {
+              paintEdgesRef.current.add(ek); drag.addedEdges.push(ek)
+              if (!paintColorsRef.current.has(ek)) paintColorsRef.current.set(ek, randPaintColor())
+            }
           }
           drag.last = hit
           wake()
@@ -498,7 +530,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             if (!paintNodesRef.current.has(sk)) { paintNodesRef.current.add(sk); nodes.push(sk) }
             if (!paintNodesRef.current.has(key)) { paintNodesRef.current.add(key); nodes.push(key) }
             const ek = edgeKey(sel, hit)
-            if (!paintEdgesRef.current.has(ek)) { paintEdgesRef.current.add(ek); edges.push(ek) }
+            if (!paintEdgesRef.current.has(ek)) {
+              paintEdgesRef.current.add(ek); edges.push(ek)
+              if (!paintColorsRef.current.has(ek)) paintColorsRef.current.set(ek, randPaintColor())
+            }
             if (nodes.length || edges.length) {
               histRef.current.push({ kind: 'paint', nodes, edges })
               redoRef.current = []; refreshHist()
@@ -856,7 +891,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         }
 
         // painted blobs (metaball bridges + node circles + optional fillets)
-        drawPaint(p, paintNodesRef.current, paintEdgesRef.current, cfg, COL)
+        drawPaint(p, paintNodesRef.current, paintEdgesRef.current, cfg, COL, 1, paintColorsRef.current)
 
         // paint mode: tint the hovered/armed pin toward accent, on top of painted nodes too
         if (modeRef.current === 'paint' && !edit) {
@@ -961,7 +996,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       ropesRef.current = []; histRef.current = []; redoRef.current = []; curRef.current = null
       polyRef.current = null; polyCursorRef.current = null
       editRopeRef.current = null; editDragRef.current = null
-      paintNodesRef.current.clear(); paintEdgesRef.current.clear(); paintDragRef.current = null
+      paintNodesRef.current.clear(); paintEdgesRef.current.clear(); paintColorsRef.current.clear(); paintDragRef.current = null
       wake(); setCanUndo(false); setCanRedo(false)
     },
     resetCircles() {
@@ -973,7 +1008,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     redo: doRedo,
     exportSVG() {
       const paint = { nodes: paintNodesRef.current, edges: paintEdgesRef.current }
-      const svg = buildSVG(ropesRef.current, paint, cfgRef.current, colRef.current.ink)
+      const svg = buildSVG(ropesRef.current, paint, cfgRef.current, colRef.current.ink, paintColorsRef.current)
       download(new Blob([svg], { type: 'image/svg+xml' }), 'grid.svg')
     },
     exportPNG() {
@@ -982,7 +1017,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       const pg = p5Ref.current.createGraphics(w, h)
       pg.pixelDensity(2); pg.clear()
       for (const rope of ropesRef.current) drawRope(pg, rope.joints, cfg.style, colRef.current)
-      drawPaint(pg, paintNodesRef.current, paintEdgesRef.current, cfg, colRef.current)
+      drawPaint(pg, paintNodesRef.current, paintEdgesRef.current, cfg, colRef.current, 1, paintColorsRef.current)
       p5Ref.current.saveCanvas(pg, 'grid', 'png')
       pg.remove()
     },

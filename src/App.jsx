@@ -12,7 +12,7 @@ export default function App() {
   const [shape, setShape] = useState('circle')   // 'circle' | 'square'
   const [cornerRadius, setCornerRadius] = useState(36) // square corner radius (% of half-size)
   const [blob, setBlob] = useState(50)          // paint connection spread (metaball v, %)
-  const [smoothJoins, setSmoothJoins] = useState(true) // fuse paint connections with smooth/glued joins
+  const [smoothJoins, setSmoothJoins] = useState(false) // fuse paint connections with smooth/glued joins
   const [hideGuides, setHideGuides] = useState(false)
   const [editTool, setEditTool] = useState('off')  // 'off' | 'sizes' (circle sizes) | 'path' (reshape ropes)
   const [darkMode, setDarkMode] = useState(false)

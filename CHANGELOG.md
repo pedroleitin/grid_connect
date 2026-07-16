@@ -5,6 +5,7 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Changed
+- **Smooth joins** (Paint mode) now defaults to **off**.
 - **Edit → Path** now only appears in **Draw** mode (Path reshapes ropes, which only exist in Draw);
   in Paint mode the **Edit** segmented shows just **Off / Sizes**. Switching to Paint while Path is
   active resets Edit to Off. **Mode** now sits above **Line** in the sidebar.
@@ -17,6 +18,9 @@ All notable changes to this project. Newest first.
   **Path** edit mode is active so the pins under them stay visible.
 
 ### Added
+- **Random connection colors** (Paint mode): each painted connection now gets its own random color
+  (a pin adopts the color of the first connection touching it). The color is assigned when the link is
+  created and persists through undo/redo; both the canvas render and the SVG/PNG export carry it.
 - **Smooth joins** (Paint mode, default on): a checkbox that fuses painted connections into a single
   glued object. Each bridge now leaves the pin tangent to its actual boundary — square bridges hug
   the flat edge (concave fillet) and circle necks round out instead of pinching to a point. Turning

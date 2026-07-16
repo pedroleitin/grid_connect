@@ -100,7 +100,7 @@ assets/                    # reference images
   rope.
 - **Blob spread** (Paint only) — tunes the metaball connection neck (low = thin, high = fat bridge);
   it is the `v` (contact-point spread) parameter, the more visible of the two metaball knobs.
-- **Smooth joins** (Paint only, default on) — fuses painted connections into one glued object: each
+- **Smooth joins** (Paint only, default off) — fuses painted connections into one glued object: each
   bridge leaves the pin tangent to its real boundary, so square bridges hug the flat edge and circle
   necks round out instead of pinching. Off = the plain metaball (inscribed-circle) bridge.
 - **Style** — Filled (blob) or Outline (line); switching crossfades the rope's opacity.
