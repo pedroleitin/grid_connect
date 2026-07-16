@@ -24,6 +24,11 @@ export default function App() {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
   }, [darkMode])
 
+  // Path editing only makes sense in Draw mode; drop it when leaving Draw
+  useEffect(() => {
+    if (mode !== 'draw' && editTool === 'path') setEditTool('off')
+  }, [mode, editTool])
+
   // keyboard shortcuts (ignored while typing in a field)
   useEffect(() => {
     const onKey = (e) => {

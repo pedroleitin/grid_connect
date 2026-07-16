@@ -5,6 +5,9 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Changed
+- **Edit → Path** now only appears in **Draw** mode (Path reshapes ropes, which only exist in Draw);
+  in Paint mode the **Edit** segmented shows just **Off / Sizes**. Switching to Paint while Path is
+  active resets Edit to Off. **Mode** now sits above **Line** in the sidebar.
 - **Unified Edit control**: the edit tools are now one **Edit** segmented (**Off / Sizes / Path**,
   shortcut **E** cycles them) placed above **Hide guides**. **Sizes** is the per-circle resize
   (formerly the "Edit sizes" toggle); **Path** is the rope-reshape mode (formerly Mode → Edit).

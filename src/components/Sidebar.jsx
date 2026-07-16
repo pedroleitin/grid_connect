@@ -146,6 +146,10 @@ export default function Sidebar({
           </div>
         </div>
 
+        <Segmented
+          label="Mode" value={mode} onChange={setMode} kbd="m"
+          options={[{ value: 'draw', label: 'Draw' }, { value: 'paint', label: 'Paint' }]}
+        />
         <div className={`collapse-row${mode === 'draw' ? ' collapse-row--open' : ''}`}>
           <div>
             <Segmented
@@ -154,10 +158,6 @@ export default function Sidebar({
             />
           </div>
         </div>
-        <Segmented
-          label="Mode" value={mode} onChange={setMode} kbd="m"
-          options={[{ value: 'draw', label: 'Draw' }, { value: 'paint', label: 'Paint' }]}
-        />
         <Segmented
           label="Style" value={style} onChange={setStyle} kbd="s"
           options={[{ value: 'fill', label: 'Filled' }, { value: 'stroke', label: 'Outline' }]}
@@ -172,8 +172,10 @@ export default function Sidebar({
           </div>
         </div>
         <Segmented
-          label="Edit" value={editTool} onChange={setEditTool} kbd="e" width={210}
-          options={[{ value: 'off', label: 'Off' }, { value: 'sizes', label: 'Sizes' }, { value: 'path', label: 'Path' }]}
+          label="Edit" value={editTool} onChange={setEditTool} kbd="e" width={mode === 'draw' ? 210 : 140}
+          options={mode === 'draw'
+            ? [{ value: 'off', label: 'Off' }, { value: 'sizes', label: 'Sizes' }, { value: 'path', label: 'Path' }]
+            : [{ value: 'off', label: 'Off' }, { value: 'sizes', label: 'Sizes' }]}
         />
         <Checkbox label="Hide guides" checked={hideGuides} onChange={setHideGuides} kbd="h" />
 
