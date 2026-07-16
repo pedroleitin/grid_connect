@@ -79,7 +79,10 @@ or ignored (Edit → Sizes). Exports SVG/PNG.
   (Set of sorted `"ka|kb"` via `edgeKey`); `adjacentCells` (8-way) blocks skipping a cell;
   `paintSelRef` = armed pin. `metaball(c1,r1,c2,r2,v,handleRate)`/`metaballPathD` (paper.js Meta Balls
   port) build the Bézier bridge — `v` = **Blob spread** slider (`cfg.blob`), `handleRate` fixed.
-  `drawPaint` renders bridges + nodes with the same solid ink so they union — nodes follow the Pin
+  **Smooth joins** (`cfg.smoothJoins`, default true, Sidebar checkbox) picks the bridge builder via
+  `bridge(c1,r1,c2,r2,cfg)`: on → `smoothBridge` (contacts on the pin's real boundary via
+  `nodeBoundary`, tangent-aligned handles → squares hug the flat edge, circle necks round out); off →
+  plain `metaball`. `drawPaint` renders bridges + nodes with the same solid ink so they union — nodes follow the Pin
   shape (rounded rect for squares). `removeNode` deletes a node + its links; `paintHoverRef` +
   `paintAnimRef` ease the pin **fill** toward accent on hover/arm (no ring). Undo/redo unified in
   `histRef`/`redoRef` (`{kind:'rope'|'paint'}`, removals use `inverse`); `buildSVG(ropes, paint, cfg,

@@ -12,6 +12,7 @@ export default function App() {
   const [shape, setShape] = useState('circle')   // 'circle' | 'square'
   const [cornerRadius, setCornerRadius] = useState(36) // square corner radius (% of half-size)
   const [blob, setBlob] = useState(50)          // paint connection spread (metaball v, %)
+  const [smoothJoins, setSmoothJoins] = useState(true) // fuse paint connections with smooth/glued joins
   const [hideGuides, setHideGuides] = useState(false)
   const [editTool, setEditTool] = useState('off')  // 'off' | 'sizes' (circle sizes) | 'path' (reshape ropes)
   const [darkMode, setDarkMode] = useState(false)
@@ -64,6 +65,7 @@ export default function App() {
         shape={shape} setShape={setShape}
         cornerRadius={cornerRadius} setCornerRadius={setCornerRadius}
         blob={blob} setBlob={setBlob}
+        smoothJoins={smoothJoins} setSmoothJoins={setSmoothJoins}
         hideGuides={hideGuides} setHideGuides={setHideGuides}
         editTool={editTool} setEditTool={setEditTool}
         onClear={() => canvasApi.current?.clear()}
@@ -94,7 +96,7 @@ export default function App() {
           cols={cols} rows={rows} cellSize={cellSize} gap={gap}
           shape={shape} tension={tension} style={style}
           cornerRadius={cornerRadius} mode={editTool === 'path' ? 'edit' : mode} blob={blob}
-          drawTool={drawTool}
+          drawTool={drawTool} smoothJoins={smoothJoins}
           hideGuides={hideGuides} editMode={editTool === 'sizes'} theme={darkMode ? 'dark' : 'light'}
           leftInset={330}
         />

@@ -100,7 +100,10 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
   from `edgeKey`); `adjacentCells` (8-way) gates links so you can't skip a cell; `paintSelRef` holds
   the armed pin. `metaball(c1,r1,c2,r2,v,handleRate)`/`metaballPathD()` in `geometry.js` (paper.js
   Meta Balls port) build the Bézier bridge — `v` (contact-point spread) is exposed as the **Blob
-  spread** slider (`cfg.blob`), `handleRate` is fixed. `drawPaint()` renders bridges (`bezierVertex`)
+  spread** slider (`cfg.blob`), `handleRate` is fixed. **Smooth joins** (`cfg.smoothJoins`, default
+  true, Sidebar checkbox) swaps the bridge builder via `bridge(c1,r1,c2,r2,cfg)`: on → `smoothBridge`
+  (contacts on the pin's real boundary via `nodeBoundary`, handles along the edge tangent → squares
+  hug the flat edge, circle necks round out); off → plain `metaball`. `drawPaint()` renders bridges (`bezierVertex`)
   + nodes with the same solid ink so they union — nodes follow the Pin shape (rounded `rect` for
   squares). `removeNode` deletes a node + its links; `paintHoverRef` + `paintAnimRef` ease the pin's
   **fill** toward accent on hover/arm (no ring). Undo/redo is unified in `histRef`/`redoRef` as

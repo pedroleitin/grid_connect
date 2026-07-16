@@ -115,6 +115,7 @@ export default function Sidebar({
   cols, setCols, rows, setRows, cellSize, setCellSize, gap, setGap,
   tension, setTension, mode, setMode, style, setStyle, shape, setShape,
   cornerRadius, setCornerRadius, blob, setBlob, drawTool, setDrawTool,
+  smoothJoins, setSmoothJoins,
   hideGuides, setHideGuides,
   editTool, setEditTool,
   onClear, onResetCircles,
@@ -141,6 +142,7 @@ export default function Sidebar({
         <div className={`collapse-row${mode === 'paint' ? ' collapse-row--open' : ''}`}>
           <div>
             <Slider label="Blob spread" min={20} max={90} value={blob} suffix="%" onChange={setBlob} />
+            <Checkbox label="Smooth joins" checked={smoothJoins} onChange={setSmoothJoins} />
           </div>
         </div>
 

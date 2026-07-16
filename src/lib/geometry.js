@@ -242,6 +242,90 @@ export function metaballPathD(m) {
     + `C ${R2(m.ho2.x)} ${R2(m.ho2.y)} ${R2(m.hi3.x)} ${R2(m.hi3.y)} ${R2(m.p1b.x)} ${R2(m.p1b.y)} Z`;
 }
 
+/* ---- Smooth (fused) connection ----------------------------------------------
+   A bridge whose sides leave each node tangent to its actual boundary (circle
+   OR rounded square), so the neck flows out along the shape's edge and the whole
+   thing reads as one object. Returns the same shape as metaball() (four contact
+   points + Bézier handles) so the renderer/export reuse the same drawing code. */
+
+/* Exit point + unit tangent (CCW) of a ray from the node center at angle theta,
+   for a circle (square=false) or a rounded square of half-size `half`. */
+function nodeBoundary(cx, cy, half, square, cr01, theta) {
+  const dx = Math.cos(theta), dy = Math.sin(theta);
+  if (!square) {
+    return { x: cx + dx * half, y: cy + dy * half, tx: -dy, ty: dx };
+  }
+  const h = half, cr = Math.max(0, Math.min(h, h * cr01)), inner = h - cr;
+  let best = Infinity, px = dx * h, py = dy * h, nx = dx, ny = dy;
+  if (Math.abs(dx) > 1e-9) {                       // vertical edges x = ±h
+    for (const sx of [-1, 1]) {
+      const t = (sx * h) / dx;
+      if (t > 1e-9) {
+        const y = t * dy;
+        if (Math.abs(y) <= inner + 1e-9 && t < best) { best = t; px = sx * h; py = y; nx = sx; ny = 0; }
+      }
+    }
+  }
+  if (Math.abs(dy) > 1e-9) {                       // horizontal edges y = ±h
+    for (const sy of [-1, 1]) {
+      const t = (sy * h) / dy;
+      if (t > 1e-9) {
+        const x = t * dx;
+        if (Math.abs(x) <= inner + 1e-9 && t < best) { best = t; px = x; py = sy * h; nx = 0; ny = sy; }
+      }
+    }
+  }
+  if (cr > 1e-9) {                                 // rounded corners
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+      const ox = sx * inner, oy = sy * inner;
+      const b = dx * ox + dy * oy, c = ox * ox + oy * oy - cr * cr, disc = b * b - c;
+      if (disc >= 0) {
+        const t = b + Math.sqrt(disc);
+        if (t > 1e-9 && t < best) {
+          const x = t * dx, y = t * dy;
+          if ((x - ox) * sx >= -1e-6 && (y - oy) * sy >= -1e-6) {
+            best = t; px = x; py = y; nx = (x - ox) / cr; ny = (y - oy) / cr;
+          }
+        }
+      }
+    }
+  }
+  return { x: cx + px, y: cy + py, tx: -ny, ty: nx };
+}
+
+export function smoothBridge(c1, r1, c2, r2, cfg) {
+  const square = cfg.shape === 'square';
+  const cr01 = square ? (cfg.cornerRadius ?? 36) / 100 : 0;
+  const v = (cfg.blob ?? 50) / 100;
+  const dx = c2.x - c1.x, dy = c2.y - c1.y, d = Math.hypot(dx, dy);
+  if (d === 0 || r1 === 0 || r2 === 0 || d <= Math.abs(r1 - r2)) return null;
+  const phi = Math.atan2(dy, dx);
+  // neck half-angle: wider blob spread -> contacts further apart -> fatter neck
+  const delta = (Math.PI / 2) * (0.28 + 0.55 * v);
+  const p1a = nodeBoundary(c1.x, c1.y, r1, square, cr01, phi + delta);
+  const p1b = nodeBoundary(c1.x, c1.y, r1, square, cr01, phi - delta);
+  const p2a = nodeBoundary(c2.x, c2.y, r2, square, cr01, phi + Math.PI - delta);
+  const p2b = nodeBoundary(c2.x, c2.y, r2, square, cr01, phi + Math.PI + delta);
+  const F = 0.55;   // handle length as a fraction of the side chord
+  const handle = (pt, target) => {
+    const len = F * Math.hypot(target.x - pt.x, target.y - pt.y);
+    let hx = pt.tx, hy = pt.ty;
+    if ((target.x - pt.x) * hx + (target.y - pt.y) * hy < 0) { hx = -hx; hy = -hy; }
+    return { x: pt.x + hx * len, y: pt.y + hy * len };
+  };
+  return {
+    p1a, p1b, p2a, p2b,
+    ho0: handle(p1a, p2a), hi1: handle(p2a, p1a),
+    ho2: handle(p2b, p1b), hi3: handle(p1b, p2b),
+  };
+}
+
+/* Bridge chooser used by both the renderer and the SVG export. */
+export function bridge(c1, r1, c2, r2, cfg) {
+  return cfg.smoothJoins ? smoothBridge(c1, r1, c2, r2, cfg)
+                         : metaball(c1, r1, c2, r2, (cfg.blob ?? 50) / 100);
+}
+
 /* Two cells are connectable only if they are immediate neighbors (8-way),
    never skipping a cell. */
 export function adjacentCells(a, b) {
@@ -265,13 +349,12 @@ export function buildSVG(ropes, paint, cfg, ink) {
   if (paint && paint.nodes && paint.nodes.size) {
     const square = cfg.shape === 'square';
     const cr01 = (cfg.cornerRadius ?? 36) / 100;
-    const v = (cfg.blob ?? 50) / 100;
     for (const key of paint.edges) {
       const [ka, kb] = key.split('|');
       const [ra, ca] = ka.split(',').map(Number);
       const [rb, cb] = kb.split(',').map(Number);
-      const m = metaball(cellCenter(ra, ca, cfg), sizeOf(cfg, ra, ca) / 2,
-                         cellCenter(rb, cb, cfg), sizeOf(cfg, rb, cb) / 2, v);
+      const m = bridge(cellCenter(ra, ca, cfg), sizeOf(cfg, ra, ca) / 2,
+                       cellCenter(rb, cb, cfg), sizeOf(cfg, rb, cb) / 2, cfg);
       if (m) body += `<path d="${metaballPathD(m)}" fill="${ink}"/>`;
     }
     for (const key of paint.nodes) {

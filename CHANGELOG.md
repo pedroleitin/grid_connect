@@ -14,6 +14,12 @@ All notable changes to this project. Newest first.
   **Path** edit mode is active so the pins under them stay visible.
 
 ### Added
+- **Smooth joins** (Paint mode, default on): a checkbox that fuses painted connections into a single
+  glued object. Each bridge now leaves the pin tangent to its actual boundary — square bridges hug
+  the flat edge (concave fillet) and circle necks round out instead of pinching to a point. Turning
+  it off restores the plain metaball (inscribed-circle) bridge. Implemented geometrically (`bridge`/
+  `smoothBridge`/`nodeBoundary` in `geometry.js`), so both the canvas render and the SVG/PNG export
+  stay clean vector.
 - **Path editing** (Edit → **Path**): reshape a rope after drawing it. Click a rope to select it
   (dashed outline + vertex handles appear); drag its interior/outline to move the whole loop — it
   re-wraps whatever pins are now underneath — or drag a vertex handle to reshape it. Undo/redo covers
