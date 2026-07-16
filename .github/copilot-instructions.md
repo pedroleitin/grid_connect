@@ -82,10 +82,7 @@ or ignored (Edit → Sizes). Exports SVG/PNG.
   **Smooth joins** (`cfg.smoothJoins`, default true, Sidebar checkbox) picks the bridge builder via
   `bridge(c1,r1,c2,r2,cfg)`: on → `smoothBridge` (contacts on the pin's real boundary via
   `nodeBoundary`, tangent-aligned handles → squares hug the flat edge, circle necks round out); off →
-  plain `metaball`. **Smooth junctions** (`cfg.joinMode` `'none'|'fillet'` + **Junction** slider
-  `cfg.joinAmt`) rounds the concave notches where 2+ connections share a pin: `joinFillets`/
-  `filletPathD` build per-notch vector patches (anchored inside the pin, tangent to both arms) —
-  pure vector, no raster filter. `drawPaint` renders bridges + nodes with the same solid ink so they union — nodes follow the Pin
+  plain `metaball`. `drawPaint` renders bridges + nodes with the same solid ink so they union — nodes follow the Pin
   shape (rounded rect for squares). `removeNode` deletes a node + its links; `paintHoverRef` +
   `paintAnimRef` ease the pin **fill** toward accent on hover/arm (no ring). Undo/redo unified in
   `histRef`/`redoRef` (`{kind:'rope'|'paint'}`, removals use `inverse`); `buildSVG(ropes, paint, cfg,

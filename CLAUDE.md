@@ -103,12 +103,8 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
   spread** slider (`cfg.blob`), `handleRate` is fixed. **Smooth joins** (`cfg.smoothJoins`, default
   true, Sidebar checkbox) swaps the bridge builder via `bridge(c1,r1,c2,r2,cfg)`: on → `smoothBridge`
   (contacts on the pin's real boundary via `nodeBoundary`, handles along the edge tangent → squares
-  hug the flat edge, circle necks round out); off → plain `metaball`. **Smooth junctions**
-  (`cfg.joinMode` `'none'|'fillet'`, Sidebar checkbox + **Junction** slider `cfg.joinAmt` 0–100%)
-  rounds the concave notches where 2+ connections share a pin: `joinFillets(nodes,edges,cfg)` builds
-  a per-notch vector patch (anchored ~half-radius inside the pin, blended tangent to both arms via
-  `cubicPt`/`cubicTan`), rendered with `bezierVertex` and exported via `filletPathD` — pure vector, no
-  raster filter. `drawPaint()` renders bridges (`bezierVertex`)
+  hug the flat edge, circle necks round out); off → plain `metaball`. `drawPaint()` renders bridges
+  (`bezierVertex`)
   + nodes with the same solid ink so they union — nodes follow the Pin shape (rounded `rect` for
   squares). `removeNode` deletes a node + its links; `paintHoverRef` + `paintAnimRef` ease the pin's
   **fill** toward accent on hover/arm (no ring). Undo/redo is unified in `histRef`/`redoRef` as
