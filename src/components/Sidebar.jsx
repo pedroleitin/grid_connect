@@ -141,7 +141,7 @@ export default function Sidebar({
         </div>
         <div className={`collapse-row${mode === 'paint' ? ' collapse-row--open' : ''}`}>
           <div>
-            <Slider label="Blob spread" min={20} max={90} value={blob} suffix="%" onChange={setBlob} />
+            <Slider label="Blob spread" min={5} max={90} value={blob} suffix="%" onChange={setBlob} />
             <Checkbox label="Smooth joins" checked={smoothJoins} onChange={setSmoothJoins} />
           </div>
         </div>
