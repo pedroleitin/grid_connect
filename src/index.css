@@ -210,9 +210,10 @@ canvas { display: block; cursor: crosshair; }
   max-height: 0;
   opacity: 0;
   overflow: hidden;
+  flex-shrink: 0;
   transition: max-height 0.28s ease, opacity 0.28s ease;
 }
-.collapse-row--open { max-height: 160px; opacity: 1; }
+.collapse-row--open { max-height: 520px; opacity: 1; }
 .tool-btn:disabled { opacity: 0.35; cursor: default; }
 .tool-btn:disabled:hover { background: var(--c-btn); }
 .tool-btn.active {

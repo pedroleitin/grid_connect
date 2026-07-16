@@ -293,6 +293,11 @@ function nodeBoundary(cx, cy, half, square, cr01, theta) {
   return { x: cx + px, y: cy + py, tx: -ny, ty: nx };
 }
 
+function neckDelta(v) {
+  // neck half-angle: wider blob spread -> contacts further apart -> fatter neck
+  return (Math.PI / 2) * (0.28 + 0.55 * v);
+}
+
 export function smoothBridge(c1, r1, c2, r2, cfg) {
   const square = cfg.shape === 'square';
   const cr01 = square ? (cfg.cornerRadius ?? 36) / 100 : 0;
@@ -300,8 +305,7 @@ export function smoothBridge(c1, r1, c2, r2, cfg) {
   const dx = c2.x - c1.x, dy = c2.y - c1.y, d = Math.hypot(dx, dy);
   if (d === 0 || r1 === 0 || r2 === 0 || d <= Math.abs(r1 - r2)) return null;
   const phi = Math.atan2(dy, dx);
-  // neck half-angle: wider blob spread -> contacts further apart -> fatter neck
-  const delta = (Math.PI / 2) * (0.28 + 0.55 * v);
+  const delta = neckDelta(v);
   const p1a = nodeBoundary(c1.x, c1.y, r1, square, cr01, phi + delta);
   const p1b = nodeBoundary(c1.x, c1.y, r1, square, cr01, phi - delta);
   const p2a = nodeBoundary(c2.x, c2.y, r2, square, cr01, phi + Math.PI - delta);
@@ -324,6 +328,95 @@ export function smoothBridge(c1, r1, c2, r2, cfg) {
 export function bridge(c1, r1, c2, r2, cfg) {
   return cfg.smoothJoins ? smoothBridge(c1, r1, c2, r2, cfg)
                          : metaball(c1, r1, c2, r2, (cfg.blob ?? 50) / 100);
+}
+
+/* Cubic Bézier point + tangent at parameter t. */
+function cubicPt(P0, P1, P2, P3, t) {
+  const u = 1 - t, a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, e = t * t * t;
+  return { x: a * P0.x + b * P1.x + c * P2.x + e * P3.x, y: a * P0.y + b * P1.y + c * P2.y + e * P3.y };
+}
+function cubicTan(P0, P1, P2, P3, t) {
+  const u = 1 - t;
+  const x = 3 * u * u * (P1.x - P0.x) + 6 * u * t * (P2.x - P1.x) + 3 * t * t * (P3.x - P2.x);
+  const y = 3 * u * u * (P1.y - P0.y) + 6 * u * t * (P2.y - P1.y) + 3 * t * t * (P3.y - P2.y);
+  const m = Math.hypot(x, y) || 1;
+  return { x: x / m, y: y / m };
+}
+
+/* Approach A — vector junction fillets. Where 2+ connections share a pin, each
+   pair of angularly-adjacent arms leaves a sharp concave notch between their
+   facing edges. For every such notch we add a small closed patch that caps the
+   valley: it is anchored on the pin boundary (apex) and blends tangent to both
+   arms, rounding the notch into one smooth object. The patch is filled together
+   with the bridges/nodes so the union stays seamless.
+   Returns [{ apex, Ao, Bo, hA, hB }] — apex on the pin boundary, Ao/Bo points a
+   little way out along each arm's facing edge, hA/hB the tangent Bézier handles. */
+export function joinFillets(nodes, edges, cfg) {
+  if (!nodes || !edges) return [];
+  const amt = (cfg.joinAmt ?? 50) / 100;
+  const TA = 0.04 + 0.18 * amt;   // how far out along each arm the fillet grabs
+  const LK = 0.28 + 0.42 * amt;   // tangent handle length as a fraction of the chord
+  const adj = new Map();   // "r,c" -> [{ key, ang }]
+  for (const key of edges) {
+    const [ka, kb] = key.split('|');
+    const [ra, ca] = ka.split(',').map(Number);
+    const [rb, cb] = kb.split(',').map(Number);
+    const A = cellCenter(ra, ca, cfg), B = cellCenter(rb, cb, cfg);
+    if (!adj.has(ka)) adj.set(ka, []);
+    if (!adj.has(kb)) adj.set(kb, []);
+    adj.get(ka).push({ key: kb, ang: Math.atan2(B.y - A.y, B.x - A.x) });
+    adj.get(kb).push({ key: ka, ang: Math.atan2(A.y - B.y, A.x - B.x) });
+  }
+  const out = [];
+  for (const [key, arms] of adj) {
+    if (arms.length < 2) continue;
+    const [r, c] = key.split(',').map(Number);
+    const C = cellCenter(r, c, cfg), radC = sizeOf(cfg, r, c) / 2;
+    arms.sort((a, b) => a.ang - b.ang);
+    const armCenter = (a) => {
+      const [nr, nc] = a.key.split(',').map(Number);
+      return { ct: cellCenter(nr, nc, cfg), rad: sizeOf(cfg, nr, nc) / 2 };
+    };
+    const nArms = arms.length;
+    for (let i = 0; i < nArms; i++) {
+      const a = arms[i], b = arms[(i + 1) % nArms];
+      let gap = b.ang - a.ang; if (gap < 0) gap += Math.PI * 2;
+      // only round a real inner corner: skip straight-through / reflex gaps, and
+      // (for a lone pair) skip the wide "outer" gap that is not a notch
+      if (gap >= Math.PI - 0.12) continue;
+      if (nArms === 2 && i === 1) continue;   // a 2-arm pin has one notch, not two
+      const na = armCenter(a), nb = armCenter(b);
+      const mA = bridge(C, radC, na.ct, na.rad, cfg);
+      const mB = bridge(C, radC, nb.ct, nb.rad, cfg);
+      if (!mA || !mB) continue;
+      // arm A's CCW-facing edge = side a (p1a -> ho0 -> hi1 -> p2a)
+      const Ao = cubicPt(mA.p1a, mA.ho0, mA.hi1, mA.p2a, TA);
+      let tA = cubicTan(mA.p1a, mA.ho0, mA.hi1, mA.p2a, TA);
+      // arm B's CW-facing edge = side b read from the pin (p1b -> hi3 -> ho2 -> p2b)
+      const Bo = cubicPt(mB.p1b, mB.hi3, mB.ho2, mB.p2b, TA);
+      let tB = cubicTan(mB.p1b, mB.hi3, mB.ho2, mB.p2b, TA);
+      // orient each tangent outward (away from the pin center)
+      if (tA.x * (Ao.x - C.x) + tA.y * (Ao.y - C.y) < 0) { tA = { x: -tA.x, y: -tA.y }; }
+      if (tB.x * (Bo.x - C.x) + tB.y * (Bo.y - C.y) < 0) { tB = { x: -tB.x, y: -tB.y }; }
+      const mid = a.ang + gap / 2;
+      // anchor a little inside the pin so the patch overlaps the disk (no sliver)
+      const apex = { x: C.x + Math.cos(mid) * radC * 0.5, y: C.y + Math.sin(mid) * radC * 0.5 };
+      const L = LK * Math.hypot(Bo.x - Ao.x, Bo.y - Ao.y);
+      out.push({
+        apex,
+        Ao, Bo,
+        hA: { x: Ao.x + tA.x * L, y: Ao.y + tA.y * L },
+        hB: { x: Bo.x + tB.x * L, y: Bo.y + tB.y * L },
+      });
+    }
+  }
+  return out;
+}
+
+/* SVG path for a junction fillet patch (see joinFillets). */
+export function filletPathD(f) {
+  return `M ${R2(f.apex.x)} ${R2(f.apex.y)} L ${R2(f.Ao.x)} ${R2(f.Ao.y)} `
+    + `C ${R2(f.hA.x)} ${R2(f.hA.y)} ${R2(f.hB.x)} ${R2(f.hB.y)} ${R2(f.Bo.x)} ${R2(f.Bo.y)} Z`;
 }
 
 /* Two cells are connectable only if they are immediate neighbors (8-way),
@@ -356,6 +449,11 @@ export function buildSVG(ropes, paint, cfg, ink) {
       const m = bridge(cellCenter(ra, ca, cfg), sizeOf(cfg, ra, ca) / 2,
                        cellCenter(rb, cb, cfg), sizeOf(cfg, rb, cb) / 2, cfg);
       if (m) body += `<path d="${metaballPathD(m)}" fill="${ink}"/>`;
+    }
+    if (cfg.joinMode === 'fillet') {
+      for (const f of joinFillets(paint.nodes, paint.edges, cfg)) {
+        body += `<path d="${filletPathD(f)}" fill="${ink}"/>`;
+      }
     }
     for (const key of paint.nodes) {
       const [r, c] = key.split(',').map(Number);

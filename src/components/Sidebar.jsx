@@ -115,7 +115,7 @@ export default function Sidebar({
   cols, setCols, rows, setRows, cellSize, setCellSize, gap, setGap,
   tension, setTension, mode, setMode, style, setStyle, shape, setShape,
   cornerRadius, setCornerRadius, blob, setBlob, drawTool, setDrawTool,
-  smoothJoins, setSmoothJoins,
+  smoothJoins, setSmoothJoins, joinMode, setJoinMode, joinAmt, setJoinAmt,
   hideGuides, setHideGuides,
   editTool, setEditTool,
   onClear, onResetCircles,
@@ -143,6 +143,13 @@ export default function Sidebar({
           <div>
             <Slider label="Blob spread" min={5} max={90} value={blob} suffix="%" onChange={setBlob} />
             <Checkbox label="Smooth joins" checked={smoothJoins} onChange={setSmoothJoins} />
+            <Checkbox label="Smooth junctions" checked={joinMode === 'fillet'}
+              onChange={(v) => setJoinMode(v ? 'fillet' : 'none')} />
+            <div className={`collapse-row${joinMode === 'fillet' ? ' collapse-row--open' : ''}`}>
+              <div>
+                <Slider label="Junction" min={0} max={100} value={joinAmt} suffix="%" onChange={setJoinAmt} />
+              </div>
+            </div>
           </div>
         </div>
 

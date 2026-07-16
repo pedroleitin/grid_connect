@@ -103,6 +103,9 @@ assets/                    # reference images
 - **Smooth joins** (Paint only, default on) — fuses painted connections into one glued object: each
   bridge leaves the pin tangent to its real boundary, so square bridges hug the flat edge and circle
   necks round out instead of pinching. Off = the plain metaball (inscribed-circle) bridge.
+- **Smooth junctions** (Paint only) — rounds the sharp concave notches where several connections meet
+  at the same pin, so the arms fuse into one smooth shape. Pure vector (exports clean SVG). The
+  **Junction** slider (0–100%, appears when it is on) sets the rounding strength.
 - **Style** — Filled (blob) or Outline (line); switching crossfades the rope's opacity.
 - **Pin** — Circle or Square. The rope collides with the chosen shape (a circle, or a
   rounded square with flat edges), so the wrap follows it.

@@ -3,7 +3,7 @@ import p5 from 'p5'
 import {
   canvasSize, cellCenter, pins, seedJoints, stepRope,
   splineSegments, buildSVG, calmFor, CELL, PAD, sizeOf,
-  bridge, adjacentCells,
+  bridge, joinFillets, adjacentCells,
 } from '../lib/geometry'
 
 /* render a rope: closed Catmull-Rom spline through its physics joints */
@@ -39,6 +39,15 @@ function drawPaint(g, nodes, edges, cfg, COL, alpha = 1) {
     g.vertex(m.p2b.x, m.p2b.y)
     g.bezierVertex(m.ho2.x, m.ho2.y, m.hi3.x, m.hi3.y, m.p1b.x, m.p1b.y)
     g.endShape(g.CLOSE)
+  }
+  if (cfg.joinMode === 'fillet') {
+    for (const f of joinFillets(nodes, edges, cfg)) {
+      g.beginShape()
+      g.vertex(f.apex.x, f.apex.y)
+      g.vertex(f.Ao.x, f.Ao.y)
+      g.bezierVertex(f.hA.x, f.hA.y, f.hB.x, f.hB.y, f.Bo.x, f.Bo.y)
+      g.endShape(g.CLOSE)
+    }
   }
   for (const key of nodes) {
     const [r, c] = key.split(',').map(Number)
@@ -87,7 +96,7 @@ const edgeKey = (a, b) => {
 // smoothstep easing for animation progress (0..1)
 const easeInOut = (t) => t * t * (3 - 2 * t)
 
-const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, smoothJoins, hideGuides, editMode, theme, leftInset = 0 }, ref) {
+const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, smoothJoins, joinMode, joinAmt, hideGuides, editMode, theme, leftInset = 0 }, ref) {
   const holderRef = useRef(null)   // p5 host container (pans/zooms)
   const bgRef = useRef(null)       // full-page dotted background (single seamless layer)
   const insetRef = useRef(leftInset) // left area hidden by the sidebar (for centering)
@@ -202,7 +211,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       styleAnimRef.current = { from: styleCurRef.current, t: 0 }
       styleCurRef.current = style
     }
-    cfgRef.current = { cols, rows, cellSize, gap, shape, tension, style, cornerRadius, blob, smoothJoins, hideGuides, sizes: sizesRef.current, ignored: ignoredRef.current }
+    cfgRef.current = { cols, rows, cellSize, gap, shape, tension, style, cornerRadius, blob, smoothJoins, joinMode, joinAmt, hideGuides, sizes: sizesRef.current, ignored: ignoredRef.current }
     // geometry that changes the canvas size (cols/rows/spacing) re-fits the
     // content centered, so the grid always fits on screen and grows from the
     // middle — even after the user has panned or zoomed.
@@ -217,7 +226,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     lastRowsRef.current = rows
     if (!touchedRef.current || geomChanged) ctrlRef.current?.fit()
     wake()
-  }, [cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, smoothJoins, hideGuides, editMode])
+  }, [cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, smoothJoins, joinMode, joinAmt, hideGuides, editMode])
 
   // re-read theme colors so pins/ropes recolor on light/dark switch (deferred to rAF
   // so the parent's data-theme update has committed first)
@@ -855,7 +864,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           }
         }
 
-        // painted blobs (metaball bridges + node circles)
+        // painted blobs (metaball bridges + node circles + optional fillets)
         drawPaint(p, paintNodesRef.current, paintEdgesRef.current, cfg, COL)
 
         // paint mode: tint the hovered/armed pin toward accent, on top of painted nodes too
