@@ -101,8 +101,8 @@ style). Visuals follow [grid-gen-2](https://github.com/pedroleitin/grid-gen-2).
   the armed pin. `metaball(c1,r1,c2,r2,v,handleRate)`/`metaballPathD()` in `geometry.js` (paper.js
   Meta Balls port) build the Bézier bridge — `v` (contact-point spread) is exposed as the **Blob
   spread** slider (`cfg.blob`), `handleRate` is fixed. Each painted connection gets a **random color**
-  (`randPaintColor` → `paintColorsRef` Map keyed by edge; a node takes its first connection's color),
-  threaded into `drawPaint`/`buildSVG`. **Smooth joins** (`cfg.smoothJoins`, default
+  (`randPaintColor` → `paintColorsRef` Map keyed by edge); the pins (nodes) stay the default ink
+  color. Colors are threaded into `drawPaint`/`buildSVG`. **Smooth joins** (`cfg.smoothJoins`, default
   false, Sidebar checkbox) swaps the bridge builder via `bridge(c1,r1,c2,r2,cfg)`: on → `smoothBridge`
   (contacts on the pin's real boundary via `nodeBoundary`, handles along the edge tangent → squares
   hug the flat edge, circle necks round out); off → plain `metaball`. `drawPaint()` renders bridges

@@ -25,16 +25,6 @@ function drawRope(g, joints, style, COL, alpha = 1) {
 function drawPaint(g, nodes, edges, cfg, COL, alpha = 1, colors = null) {
   if (!nodes || nodes.size === 0) return
   const ink = g.color(COL.ink); ink.setAlpha(255 * alpha)
-  // each node inherits the color of the first connection touching it
-  const nodeCol = new Map()
-  if (colors) {
-    for (const key of edges) {
-      const c = colors.get(key); if (!c) continue
-      const [ka, kb] = key.split('|')
-      if (!nodeCol.has(ka)) nodeCol.set(ka, c)
-      if (!nodeCol.has(kb)) nodeCol.set(kb, c)
-    }
-  }
   const fillFor = (css) => {
     if (!css) return ink
     const f = g.color(css); f.setAlpha(255 * alpha); return f
@@ -55,11 +45,11 @@ function drawPaint(g, nodes, edges, cfg, COL, alpha = 1, colors = null) {
     g.bezierVertex(m.ho2.x, m.ho2.y, m.hi3.x, m.hi3.y, m.p1b.x, m.p1b.y)
     g.endShape(g.CLOSE)
   }
+  g.fill(ink)
   for (const key of nodes) {
     const [r, c] = key.split(',').map(Number)
     const ct = cellCenter(r, c, cfg)
     const s = sizeOf(cfg, r, c)
-    g.fill(fillFor(nodeCol.get(key)))
     if (cfg.shape === 'square') {
       const cr01 = (cfg.cornerRadius ?? 36) / 100
       g.rect(ct.x - s / 2, ct.y - s / 2, s, s, (s / 2) * cr01)

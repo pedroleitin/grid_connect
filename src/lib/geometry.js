@@ -353,16 +353,6 @@ export function buildSVG(ropes, paint, cfg, ink, colors = null) {
   if (paint && paint.nodes && paint.nodes.size) {
     const square = cfg.shape === 'square';
     const cr01 = (cfg.cornerRadius ?? 36) / 100;
-    // each node inherits the color of the first connection touching it
-    const nodeCol = new Map();
-    if (colors) {
-      for (const key of paint.edges) {
-        const c = colors.get(key); if (!c) continue;
-        const [ka, kb] = key.split('|');
-        if (!nodeCol.has(ka)) nodeCol.set(ka, c);
-        if (!nodeCol.has(kb)) nodeCol.set(kb, c);
-      }
-    }
     for (const key of paint.edges) {
       const [ka, kb] = key.split('|');
       const [ra, ca] = ka.split(',').map(Number);
@@ -375,10 +365,9 @@ export function buildSVG(ropes, paint, cfg, ink, colors = null) {
       const [r, c] = key.split(',').map(Number);
       const ct = cellCenter(r, c, cfg);
       const s = sizeOf(cfg, r, c);
-      const fill = nodeCol.get(key) || ink;
       body += square
-        ? `<rect x="${R2(ct.x - s / 2)}" y="${R2(ct.y - s / 2)}" width="${R2(s)}" height="${R2(s)}" rx="${R2((s / 2) * cr01)}" fill="${fill}"/>`
-        : `<circle cx="${R2(ct.x)}" cy="${R2(ct.y)}" r="${R2(s / 2)}" fill="${fill}"/>`;
+        ? `<rect x="${R2(ct.x - s / 2)}" y="${R2(ct.y - s / 2)}" width="${R2(s)}" height="${R2(s)}" rx="${R2((s / 2) * cr01)}" fill="${ink}"/>`
+        : `<circle cx="${R2(ct.x)}" cy="${R2(ct.y)}" r="${R2(s / 2)}" fill="${ink}"/>`;
     }
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${R2(w)}" height="${R2(h)}" viewBox="0 0 ${R2(w)} ${R2(h)}">\n${body}\n</svg>`;

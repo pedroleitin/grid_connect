@@ -18,8 +18,8 @@ All notable changes to this project. Newest first.
   **Path** edit mode is active so the pins under them stay visible.
 
 ### Added
-- **Random connection colors** (Paint mode): each painted connection now gets its own random color
-  (a pin adopts the color of the first connection touching it). The color is assigned when the link is
+- **Random connection colors** (Paint mode): each painted connection now gets its own random color;
+  the pins (circles/squares) stay the default ink color. The color is assigned when the link is
   created and persists through undo/redo; both the canvas render and the SVG/PNG export carry it.
 - **Smooth joins** (Paint mode, default on): a checkbox that fuses painted connections into a single
   glued object. Each bridge now leaves the pin tangent to its actual boundary — square bridges hug
