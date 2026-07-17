@@ -22,14 +22,11 @@ function drawRope(g, joints, style, COL, alpha = 1) {
 
 /* render painted blobs: filled node circles + metaball bezier bridges (same
    solid fill, so overlaps read as one connected shape) */
-function drawPaint(g, nodes, edges, cfg, COL, alpha = 1, colors = null) {
+function drawPaint(g, nodes, edges, cfg, COL, alpha = 1) {
   if (!nodes || nodes.size === 0) return
   const ink = g.color(COL.ink); ink.setAlpha(255 * alpha)
-  const fillFor = (css) => {
-    if (!css) return ink
-    const f = g.color(css); f.setAlpha(255 * alpha); return f
-  }
   g.noStroke()
+  g.fill(ink)
   for (const key of edges) {
     const [ka, kb] = key.split('|')
     const [ra, ca] = ka.split(',').map(Number)
@@ -37,7 +34,6 @@ function drawPaint(g, nodes, edges, cfg, COL, alpha = 1, colors = null) {
     const m = bridge(cellCenter(ra, ca, cfg), sizeOf(cfg, ra, ca) / 2,
                      cellCenter(rb, cb, cfg), sizeOf(cfg, rb, cb) / 2, cfg)
     if (!m) continue
-    g.fill(fillFor(colors && colors.get(key)))
     g.beginShape()
     g.vertex(m.p1a.x, m.p1a.y)
     g.bezierVertex(m.ho0.x, m.ho0.y, m.hi1.x, m.hi1.y, m.p2a.x, m.p2a.y)
@@ -80,8 +76,6 @@ const MIN_SCALE = 0.2
 const MAX_SCALE = 5
 const clampScale = (s) => Math.max(MIN_SCALE, Math.min(MAX_SCALE, s))
 const MIN_DIAM = 8            // per-circle size limits
-const MAX_DIAM = 300          // edit mode lets a circle grow beyond its container
-const clampDiam = (d) => Math.max(MIN_DIAM, Math.min(MAX_DIAM, d))
 const EDIT_HANDLE_MAX = 40    // only show draggable vertex handles for loops up to this many points
 
 // canonical key for an undirected paint link between two cells
@@ -91,17 +85,6 @@ const edgeKey = (a, b) => {
 }
 
 // random pleasant color (fixed sat/lightness, random hue) as a hex string
-function randPaintColor() {
-  const h = Math.random() * 360, s = 0.68, l = 0.55
-  const a = s * Math.min(l, 1 - l)
-  const f = (n) => {
-    const k = (n + h / 30) % 12
-    const v = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))
-    return Math.round(255 * v).toString(16).padStart(2, '0')
-  }
-  return `#${f(0)}${f(8)}${f(4)}`
-}
-
 // smoothstep easing for animation progress (0..1)
 const easeInOut = (t) => t * t * (3 - 2 * t)
 
@@ -117,7 +100,6 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const ropesRef = useRef([])       // physics ropes: { loop, joints }
   const paintNodesRef = useRef(new Set())  // painted cells "r,c"
   const paintEdgesRef = useRef(new Set())  // painted links: sorted "ka|kb"
-  const paintColorsRef = useRef(new Map()) // per-link random color: "ka|kb" -> hex
   const paintDragRef = useRef(null)        // in-progress paint drag state
   const histRef = useRef([])        // unified undo stack: { kind, ... }
   const redoRef = useRef([])        // undone actions, for redo
@@ -146,6 +128,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const editRopeRef = useRef(null)        // selected rope for reshaping (edit mode)
   const editDragRef = useRef(null)        // active edit drag: { kind:'move'|'vertex', rope, ... }
   const editHoverRef = useRef(false)      // cursor is over a selected rope/handle (edit mode)
+  const editShiftRef = useRef(null)       // Shift+edit target: { kind:'add'|'remove', rope, ... }
 
   // view transform: world -> screen is  screen = world * scale + (tx, ty)
   const viewRef = useRef({ scale: 1, tx: 0, ty: 0 })
@@ -256,7 +239,15 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       const panRef = { current: null }
       const canvasEl = { current: null }
       const idleCursor = () => (spaceRef.current || panToolRef.current ? 'grab' : 'crosshair')
-      const isEdit = () => editModeRef.current || shiftRef.current
+      // Shift in path-edit mode drives add/remove point (not the sizes override).
+      const isEdit = () => editModeRef.current || (shiftRef.current && modeRef.current !== 'edit')
+      // custom + / - cursors for adding / removing path points on Shift-hover
+      const svgCursor = (inner) => {
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><circle cx='12' cy='12' r='9' fill='white' stroke='black' stroke-width='1.5'/>${inner}</svg>`
+        return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 12 12`
+      }
+      const CURSOR_ADD = svgCursor(`<path d='M12 7 L12 17 M7 12 L17 12' stroke='black' stroke-width='1.5'/>`) + ', copy'
+      const CURSOR_DEL = svgCursor(`<path d='M7 12 L17 12' stroke='black' stroke-width='1.5'/>`) + ', not-allowed'
 
       // paint the single full-page dotted background so it pans/zooms with the
       // content — offset by the holder's page position so the pattern is seamless
@@ -338,7 +329,9 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         const resizePin = (w) => {
           const hit = dragPinRef.current; if (!hit) return
           const cfg = cfgRef.current, ct = cellCenter(hit.r, hit.c, cfg)
-          const diam = clampDiam(Math.hypot(w.x - ct.x, w.y - ct.y) * 2)
+          // edit mode lets a circle grow up to 3x the global size slider value
+          const max = Math.max(MIN_DIAM, cfg.cellSize * 3)
+          const diam = Math.max(MIN_DIAM, Math.min(max, Math.hypot(w.x - ct.x, w.y - ct.y) * 2))
           sizesRef.current.set(hit.r + ',' + hit.c, diam)
           wake()
         }
@@ -398,25 +391,104 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           if (!rope.loop) return 0
           return isClosedLoop(rope) ? rope.loop.length - 1 : rope.loop.length
         }
+        // loop indices to expose as draggable handles: all of them for light loops,
+        // an evenly-spaced subset for dense freehand loops so they stay uncluttered.
+        const handleIndices = (rope) => {
+          const n = handleCount(rope)
+          if (n === 0) return []
+          if (n <= EDIT_HANDLE_MAX) return Array.from({ length: n }, (_, i) => i)
+          const stride = Math.ceil(n / EDIT_HANDLE_MAX)
+          const out = []
+          for (let i = 0; i < n; i += stride) out.push(i)
+          return out
+        }
         // index of the loop vertex near a world point (or -1)
         const vertexIndexAt = (rope, w) => {
-          const n = handleCount(rope)
-          if (n === 0 || n > EDIT_HANDLE_MAX) return -1
-          const R = 9 / viewRef.current.scale
+          const idx = handleIndices(rope)
+          if (!idx.length) return -1
+          const R = 12 / viewRef.current.scale
           let best = -1, bestD = R
-          for (let i = 0; i < n; i++) {
+          for (const i of idx) {
             const wp = gridToWorld(rope.loop[i])
             const d = Math.hypot(w.x - wp.x, w.y - wp.y)
             if (d <= bestD) { bestD = d; best = i }
           }
           return best
         }
+        // nearest loop edge to a world point (for Shift-add); returns the insert
+        // slot (in unique-point index space) and the snapped point, or null
+        const edgeInsertAt = (rope, w) => {
+          const L = rope.loop; if (!L || L.length < 2) return null
+          const closed = isClosedLoop(rope)
+          const nPts = closed ? L.length - 1 : L.length
+          if (nPts < 2) return null
+          const tol = 10 / viewRef.current.scale
+          let best = null, bestD = tol
+          for (let i = 0; i < nPts; i++) {
+            const a = gridToWorld(L[i]), b = gridToWorld(L[(i + 1) % nPts])
+            const dx = b.x - a.x, dy = b.y - a.y
+            const len2 = dx * dx + dy * dy || 1e-9
+            let t = ((w.x - a.x) * dx + (w.y - a.y) * dy) / len2
+            t = Math.max(0, Math.min(1, t))
+            const cx = a.x + dx * t, cy = a.y + dy * t
+            const d = Math.hypot(w.x - cx, w.y - cy)
+            if (d < bestD) { bestD = d; best = { insertAfter: i, g: worldToGrid({ x: cx, y: cy }), world: { x: cx, y: cy } } }
+          }
+          return best
+        }
+        // remove / insert a loop control point (unique-point index space),
+        // rebuilding the seam duplicate for closed loops; keeps >= 3 points
+        const removeVertexAt = (rope, index) => {
+          const closed = isClosedLoop(rope)
+          const uniq = closed ? rope.loop.slice(0, -1) : rope.loop.slice()
+          if (uniq.length <= 3) return false
+          uniq.splice(index, 1)
+          rope.loop = closed ? [...uniq, { ...uniq[0] }] : uniq
+          return true
+        }
+        const insertVertexAt = (rope, insertAfter, g) => {
+          const closed = isClosedLoop(rope)
+          const uniq = closed ? rope.loop.slice(0, -1) : rope.loop.slice()
+          uniq.splice(Math.min(insertAfter + 1, uniq.length), 0, { gx: g.gx, gy: g.gy })
+          rope.loop = closed ? [...uniq, { ...uniq[0] }] : uniq
+        }
+        // Shift-hover target: remove an existing handle, else add on the nearest edge
+        const shiftTargetAt = (w) => {
+          for (let i = ropesRef.current.length - 1; i >= 0; i--) {
+            const vi = vertexIndexAt(ropesRef.current[i], w)
+            if (vi >= 0) return { kind: 'remove', rope: ropesRef.current[i], index: vi }
+          }
+          for (let i = ropesRef.current.length - 1; i >= 0; i--) {
+            const e = edgeInsertAt(ropesRef.current[i], w)
+            if (e) return { kind: 'add', rope: ropesRef.current[i], insertAfter: e.insertAfter, g: e.g, world: e.world }
+          }
+          return null
+        }
         const editDown = (w) => {
-          const sel = editRopeRef.current
-          if (sel) {
-            const vi = vertexIndexAt(sel, w)
+          // Shift: add a point on the nearest edge, or remove a hovered handle
+          if (shiftRef.current) {
+            const t = shiftTargetAt(w)
+            if (t) {
+              const before = t.rope.loop.map((g) => ({ ...g }))
+              const ok = t.kind === 'remove' ? removeVertexAt(t.rope, t.index) : (insertVertexAt(t.rope, t.insertAfter, t.g), true)
+              if (ok) {
+                editRopeRef.current = t.rope
+                reseedRope(t.rope, cfgRef.current); wake()
+                histRef.current.push({ kind: 'edit', rope: t.rope, before, after: t.rope.loop.map((g) => ({ ...g })) })
+                redoRef.current = []; refreshHist()
+              }
+            }
+            editShiftRef.current = null
+            return
+          }
+          // grab a vertex of any rope (topmost first) so handles are editable
+          // straight away, without a prior selecting click
+          for (let i = ropesRef.current.length - 1; i >= 0; i--) {
+            const rope = ropesRef.current[i]
+            const vi = vertexIndexAt(rope, w)
             if (vi >= 0) {
-              editDragRef.current = { kind: 'vertex', rope: sel, index: vi, closed: isClosedLoop(sel), before: sel.loop.map((g) => ({ ...g })) }
+              editRopeRef.current = rope
+              editDragRef.current = { kind: 'vertex', rope, index: vi, closed: isClosedLoop(rope), before: rope.loop.map((g) => ({ ...g })) }
               return
             }
           }
@@ -431,8 +503,18 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         const editMove = (w) => {
           const d = editDragRef.current
           if (!d) {
-            const sel = editRopeRef.current
-            const over = (sel && vertexIndexAt(sel, w) >= 0) || !!ropeAt(w)
+            if (shiftRef.current) {
+              const t = shiftTargetAt(w)
+              editShiftRef.current = t
+              el.style.cursor = t
+                ? (t.kind === 'remove' ? CURSOR_DEL : CURSOR_ADD)
+                : ((spaceRef.current || panToolRef.current) ? 'grab' : 'default')
+              return
+            }
+            editShiftRef.current = null
+            let over = false
+            for (const rope of ropesRef.current) { if (vertexIndexAt(rope, w) >= 0) { over = true; break } }
+            if (!over) over = !!ropeAt(w)
             editHoverRef.current = over
             el.style.cursor = (spaceRef.current || panToolRef.current) ? 'grab' : (over ? 'move' : 'default')
             return
@@ -443,23 +525,22 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             for (const j of d.rope.joints) { j.x += dx; j.y += dy; j.vx = 0; j.vy = 0 }
             const cfg = cfgRef.current, pitch = CELL + cfg.gap
             for (const g of d.rope.loop) { g.gx += dx / pitch; g.gy += dy / pitch }
-            wake()
           } else {
             const g = worldToGrid(w)
             d.rope.loop[d.index] = { gx: g.gx, gy: g.gy }
             if (d.closed && d.index === 0) d.rope.loop[d.rope.loop.length - 1] = { gx: g.gx, gy: g.gy }
+            // rebuild the outline from the loop (no wake): physics stays frozen
+            // while dragging, so vertices move freely and only re-settle on release.
             reseedRope(d.rope, cfgRef.current)
-            wake()
           }
         }
         const editUp = () => {
           const d = editDragRef.current
           editDragRef.current = null
           if (!d) return
-          // re-seed a moved rope from its (translated) loop so it settles
-          // deterministically around the pins now under it, instead of the
-          // live-translated ring snapping back to the original pins.
-          if (d.kind === 'move') { reseedRope(d.rope, cfgRef.current); wake() }
+          // re-settle this rope from its (translated / reshaped) loop on release,
+          // so the shrink-wrap physics runs after the mouse is let go.
+          reseedRope(d.rope, cfgRef.current); wake()
           const after = d.rope.loop.map((g) => ({ ...g }))
           const changed = d.before.length !== after.length ||
             d.before.some((g, i) => g.gx !== after[i].gx || g.gy !== after[i].gy)
@@ -482,7 +563,6 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             const ek = edgeKey(drag.last, hit)
             if (!paintEdgesRef.current.has(ek)) {
               paintEdgesRef.current.add(ek); drag.addedEdges.push(ek)
-              if (!paintColorsRef.current.has(ek)) paintColorsRef.current.set(ek, randPaintColor())
             }
           }
           drag.last = hit
@@ -522,7 +602,6 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             const ek = edgeKey(sel, hit)
             if (!paintEdgesRef.current.has(ek)) {
               paintEdgesRef.current.add(ek); edges.push(ek)
-              if (!paintColorsRef.current.has(ek)) paintColorsRef.current.set(ek, randPaintColor())
             }
             if (nodes.length || edges.length) {
               histRef.current.push({ kind: 'paint', nodes, edges })
@@ -727,7 +806,9 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           }
           if (e.key === 'Shift' && !shiftRef.current) {
             shiftRef.current = true
-            if (!editModeRef.current && lastEvtRef.current && !panRef.current) {
+            if (modeRef.current === 'edit') {
+              if (lastEvtRef.current && !panRef.current) editMove(worldOf(lastEvtRef.current))
+            } else if (!editModeRef.current && lastEvtRef.current && !panRef.current) {
               hoverPinRef.current = pinAt(worldOf(lastEvtRef.current))
               el.style.cursor = hoverPinRef.current ? 'ew-resize' : idleCursor()
             }
@@ -737,7 +818,11 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           if (e.code === 'Space') { spaceRef.current = false; if (!panRef.current) el.style.cursor = idleCursor() }
           if (e.key === 'Shift') {
             shiftRef.current = false
-            if (!editModeRef.current) {
+            if (modeRef.current === 'edit') {
+              editShiftRef.current = null
+              if (lastEvtRef.current && !panRef.current) editMove(worldOf(lastEvtRef.current))
+              else if (!panRef.current) el.style.cursor = idleCursor()
+            } else if (!editModeRef.current) {
               hoverPinRef.current = null; dragPinRef.current = null
               if (!panRef.current) el.style.cursor = idleCursor()
             }
@@ -764,8 +849,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         const cfg = cfgRef.current, COL = colRef.current
         p.clear()
 
-        // physics (world data) — shrink-wrap ropes around the pins while awake
-        if (simRef.current.active && ropesRef.current.length) {
+        // physics (world data) — shrink-wrap ropes around the pins while awake;
+        // frozen during an edit drag so vertices move freely without flicker
+        // (the rope only re-settles on pointer release in editUp).
+        if (simRef.current.active && !editDragRef.current && ropesRef.current.length) {
           const poles = pins(cfg)
           const { w, h } = canvasSize(cfg.cols, cfg.rows, cfg.gap)
           // bounds must cover the drawn ropes too (you can draw beyond the grid),
@@ -881,7 +968,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         }
 
         // painted blobs (metaball bridges + node circles + optional fillets)
-        drawPaint(p, paintNodesRef.current, paintEdgesRef.current, cfg, COL, 1, paintColorsRef.current)
+        drawPaint(p, paintNodesRef.current, paintEdgesRef.current, cfg, COL, 1)
 
         // paint mode: tint the hovered/armed pin toward accent, on top of painted nodes too
         if (modeRef.current === 'paint' && !edit) {
@@ -935,30 +1022,51 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           }
         }
 
-        // edit mode: outline the selected rope and show its draggable vertex handles
-        if (editDraw && editRopeRef.current && ropesRef.current.includes(editRopeRef.current)) {
-          const rope = editRopeRef.current, sc = v.scale
+        // edit mode: show draggable vertex handles for every rope right away
+        // (no selecting click needed); highlight the actively-dragged one's outline.
+        if (editDraw) {
+          const sc = v.scale
           const O = PAD + CELL / 2, pitch = CELL + cfg.gap
-          if (rope.joints && rope.joints.length >= 2) {
-            p.noFill(); p.stroke(COL.accent); p.strokeWeight(1.5 / sc)
-            p.drawingContext.setLineDash([5 / sc, 5 / sc])
-            p.beginShape(); for (const j of rope.joints) p.vertex(j.x, j.y); p.endShape(p.CLOSE)
-            p.drawingContext.setLineDash([])
-          }
-          const L = rope.loop
-          if (L && L.length) {
-            const closed = L.length >= 2 &&
-              Math.abs(L[0].gx - L[L.length - 1].gx) < 1e-6 && Math.abs(L[0].gy - L[L.length - 1].gy) < 1e-6
-            const n = closed ? L.length - 1 : L.length
-            if (n <= EDIT_HANDLE_MAX) {
-              const di = editDragRef.current
-              for (let i = 0; i < n; i++) {
-                const x = O + L[i].gx * pitch, y = O + L[i].gy * pitch
-                const activeV = di && di.kind === 'vertex' && di.index === i
-                p.noStroke(); p.fill(COL.ink); p.circle(x, y, (activeV ? 9 : 6) / sc)
-                p.fill(COL.accent); p.circle(x, y, (activeV ? 5 : 3) / sc)
-              }
+          for (const rope of ropesRef.current) {
+            const selected = rope === editRopeRef.current
+            if (selected && rope.joints && rope.joints.length >= 2) {
+              p.noFill(); p.stroke(COL.accent); p.strokeWeight(1.5 / sc)
+              p.drawingContext.setLineDash([5 / sc, 5 / sc])
+              p.beginShape(); for (const j of rope.joints) p.vertex(j.x, j.y); p.endShape(p.CLOSE)
+              p.drawingContext.setLineDash([])
             }
+            const L = rope.loop
+            if (L && L.length) {
+              const closed = L.length >= 2 &&
+                Math.abs(L[0].gx - L[L.length - 1].gx) < 1e-6 && Math.abs(L[0].gy - L[L.length - 1].gy) < 1e-6
+              const n = closed ? L.length - 1 : L.length
+              const stride = n > EDIT_HANDLE_MAX ? Math.ceil(n / EDIT_HANDLE_MAX) : 1
+              const di = editDragRef.current
+              for (let i = 0; i < n; i += stride) {
+                const x = O + L[i].gx * pitch, y = O + L[i].gy * pitch
+                const activeV = selected && di && di.kind === 'vertex' && di.index === i
+                p.fill(COL.accent); p.stroke(COL.ink); p.strokeWeight(1 / sc)
+                p.circle(x, y, (activeV ? 13 : 10) / sc)
+              }
+              p.noStroke()
+            }
+          }
+          // Shift-hover marker: a + at the insertion point, or a ring on the handle to remove
+          const st = editShiftRef.current
+          if (shiftRef.current && st) {
+            const sc2 = v.scale
+            p.noFill(); p.stroke(COL.accent); p.strokeWeight(1.5 / sc2)
+            if (st.kind === 'add' && st.world) {
+              p.circle(st.world.x, st.world.y, 14 / sc2)
+              p.line(st.world.x - 4 / sc2, st.world.y, st.world.x + 4 / sc2, st.world.y)
+              p.line(st.world.x, st.world.y - 4 / sc2, st.world.x, st.world.y + 4 / sc2)
+            } else if (st.kind === 'remove' && st.rope.loop[st.index]) {
+              const O2 = PAD + CELL / 2, pitch2 = CELL + cfg.gap
+              const x = O2 + st.rope.loop[st.index].gx * pitch2, y = O2 + st.rope.loop[st.index].gy * pitch2
+              p.circle(x, y, 18 / sc2)
+              p.line(x - 4 / sc2, y, x + 4 / sc2, y)
+            }
+            p.noStroke()
           }
         }
 
@@ -986,7 +1094,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       ropesRef.current = []; histRef.current = []; redoRef.current = []; curRef.current = null
       polyRef.current = null; polyCursorRef.current = null
       editRopeRef.current = null; editDragRef.current = null
-      paintNodesRef.current.clear(); paintEdgesRef.current.clear(); paintColorsRef.current.clear(); paintDragRef.current = null
+      paintNodesRef.current.clear(); paintEdgesRef.current.clear(); paintDragRef.current = null
       wake(); setCanUndo(false); setCanRedo(false)
     },
     resetCircles() {
@@ -998,7 +1106,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     redo: doRedo,
     exportSVG() {
       const paint = { nodes: paintNodesRef.current, edges: paintEdgesRef.current }
-      const svg = buildSVG(ropesRef.current, paint, cfgRef.current, colRef.current.ink, paintColorsRef.current)
+      const svg = buildSVG(ropesRef.current, paint, cfgRef.current, colRef.current.ink)
       download(new Blob([svg], { type: 'image/svg+xml' }), 'grid.svg')
     },
     exportPNG() {
@@ -1007,7 +1115,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       const pg = p5Ref.current.createGraphics(w, h)
       pg.pixelDensity(2); pg.clear()
       for (const rope of ropesRef.current) drawRope(pg, rope.joints, cfg.style, colRef.current)
-      drawPaint(pg, paintNodesRef.current, paintEdgesRef.current, cfg, colRef.current, 1, paintColorsRef.current)
+      drawPaint(pg, paintNodesRef.current, paintEdgesRef.current, cfg, colRef.current, 1)
       p5Ref.current.saveCanvas(pg, 'grid', 'png')
       pg.remove()
     },

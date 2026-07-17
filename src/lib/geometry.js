@@ -339,7 +339,7 @@ export function adjacentCells(a, b) {
 
 /* Clean SVG: one closed Catmull-Rom <path> per rope (filled or outlined),
    plus filled circles + metaball bridges for the painted blobs. */
-export function buildSVG(ropes, paint, cfg, ink, colors = null) {
+export function buildSVG(ropes, paint, cfg, ink) {
   const { w, h } = canvasSize(cfg.cols, cfg.rows, cfg.gap);
   let body = '';
   for (const rope of ropes) {
@@ -359,7 +359,7 @@ export function buildSVG(ropes, paint, cfg, ink, colors = null) {
       const [rb, cb] = kb.split(',').map(Number);
       const m = bridge(cellCenter(ra, ca, cfg), sizeOf(cfg, ra, ca) / 2,
                        cellCenter(rb, cb, cfg), sizeOf(cfg, rb, cb) / 2, cfg);
-      if (m) body += `<path d="${metaballPathD(m)}" fill="${(colors && colors.get(key)) || ink}"/>`;
+      if (m) body += `<path d="${metaballPathD(m)}" fill="${ink}"/>`;
     }
     for (const key of paint.nodes) {
       const [r, c] = key.split(',').map(Number);
