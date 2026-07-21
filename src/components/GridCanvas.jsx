@@ -88,10 +88,11 @@ const edgeKey = (a, b) => {
 // smoothstep easing for animation progress (0..1)
 const easeInOut = (t) => t * t * (3 - 2 * t)
 
-const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, smoothJoins, hideGuides, editMode, theme, leftInset = 0 }, ref) {
+const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, smoothJoins, hideGuides, editMode, theme, leftInset = 0, bottomInset = 0 }, ref) {
   const holderRef = useRef(null)   // p5 host container (pans/zooms)
   const bgRef = useRef(null)       // full-page dotted background (single seamless layer)
   const insetRef = useRef(leftInset) // left area hidden by the sidebar (for centering)
+  const bottomInsetRef = useRef(bottomInset) // bottom area hidden by the history dock
   const hostRef = useRef(null)     // p5 canvas mounts here
   const p5Ref = useRef(null)
   const sizesRef = useRef(new Map())  // per-cell diameter overrides: "r,c" -> px
@@ -200,6 +201,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     if (mode !== 'edit') { editRopeRef.current = null; editDragRef.current = null; editHoverRef.current = false }
     if (mode !== 'draw' || drawTool !== 'points') { polyRef.current = null; polyCursorRef.current = null }
     insetRef.current = leftInset
+    bottomInsetRef.current = bottomInset
     if (style !== styleCurRef.current) {
       styleAnimRef.current = { from: styleCurRef.current, t: 0 }
       styleCurRef.current = style
@@ -228,12 +230,13 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     return () => cancelAnimationFrame(id)
   }, [theme])
 
-  // the left panel (sidebar + optional history dock) changed width: recenter and
-  // refit the content so it stays fully visible in the shrunken viewport
+  // the left panel (sidebar) and bottom dock changed size: recenter and refit the
+  // content so it stays fully visible in the reduced viewport
   useEffect(() => {
     insetRef.current = leftInset
+    bottomInsetRef.current = bottomInset
     ctrlRef.current?.fit()
-  }, [leftInset])
+  }, [leftInset, bottomInset])
 
   // create the p5 instance (once)
   useEffect(() => {
@@ -279,11 +282,13 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       const fit = () => {
         const el = holderRef.current; if (!el) return
         const inset = insetRef.current
-        const availW = Math.max(1, el.clientWidth - inset), H = el.clientHeight
+        const bottom = bottomInsetRef.current
+        const availW = Math.max(1, el.clientWidth - inset)
+        const availH = Math.max(1, el.clientHeight - bottom)
         const { w, h } = canvasSize(cfgRef.current.cols, cfgRef.current.rows, cfgRef.current.gap)
         const margin = 60
-        const scale = clampScale(Math.min((availW - margin) / w, (H - margin) / h))
-        setView({ scale, tx: inset + (availW - w * scale) / 2, ty: (H - h * scale) / 2 })
+        const scale = clampScale(Math.min((availW - margin) / w, (availH - margin) / h))
+        setView({ scale, tx: inset + (availW - w * scale) / 2, ty: (availH - h * scale) / 2 })
       }
       ctrlRef.current = {
         fit,

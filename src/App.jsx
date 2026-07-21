@@ -73,6 +73,8 @@ export default function App() {
   const handleDeleteSnapshot = (id) => setSnapshots((s) => s.filter((x) => x.id !== id))
 
   const leftInset = 330
+  // reserve vertical space for the history dock so it never overlaps the grid
+  const bottomInset = dockOpen ? 190 : 0
 
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
@@ -157,7 +159,7 @@ export default function App() {
           cornerRadius={cornerRadius} mode={editTool === 'path' ? 'edit' : mode} blob={blob}
           drawTool={drawTool} smoothJoins={smoothJoins}
           hideGuides={hideGuides} editMode={editTool === 'sizes'} theme={darkMode ? 'dark' : 'light'}
-          leftInset={leftInset}
+          leftInset={leftInset} bottomInset={bottomInset}
         />
       </main>
 
