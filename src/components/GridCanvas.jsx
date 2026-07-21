@@ -1121,9 +1121,9 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         ignored: [...ignoredRef.current],
       }
       const paint = { nodes: paintNodesRef.current, edges: paintEdgesRef.current }
-      const svg = buildSVG(ropesRef.current, paint, cfg, colRef.current.ink)
-      const b64 = btoa(unescape(encodeURIComponent(svg)))
-      return { drawing, preview: 'data:image/svg+xml;base64,' + b64 }
+      // preview uses `currentColor` so it follows the active theme when rendered inline
+      const previewSvg = buildSVG(ropesRef.current, paint, cfg, 'currentColor')
+      return { drawing, previewSvg }
     },
     // replace the current drawing with a saved snapshot (cfg = its saved geometry,
     // so ropes re-seed at the right pitch before the parent's state syncs cfgRef)

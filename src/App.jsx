@@ -50,7 +50,7 @@ export default function App() {
       at: Date.now(),
       config: captureConfig(),
       drawing: snap.drawing,
-      preview: snap.preview,
+      previewSvg: snap.previewSvg,
     }
     setSnapshots((s) => [item, ...s])
     setDockOpen(true)
@@ -179,16 +179,6 @@ export default function App() {
             </span>
             <div className="flex items-center gap-1">
               <button
-                onClick={handleSaveSnapshot}
-                className="tool-btn icon-btn"
-                style={{ width: 26, height: 26 }}
-                title="Save current drawing" aria-label="Save current drawing"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </button>
-              <button
                 onClick={() => setDockOpen(false)}
                 className="eye-btn w-6 h-6 flex items-center justify-center rounded-md border-none bg-transparent cursor-pointer"
                 style={{ color: 'var(--c-text)' }}
@@ -201,37 +191,49 @@ export default function App() {
             </div>
           </div>
           <div className="menu-scroll flex-1 overflow-y-auto px-3 pb-3 flex flex-col gap-2">
-            {snapshots.length === 0 ? (
-              <p className="text-xs mt-2" style={{ opacity: 0.45, lineHeight: 1.5 }}>
-                Save the current drawing with the + button to build your gallery.
-              </p>
-            ) : (
-              snapshots.map((item) => (
-                <div key={item.id} className="snap-item group relative rounded-[10px] overflow-hidden">
-                  <button
-                    onClick={() => handleRestoreSnapshot(item)}
-                    className="block w-full cursor-pointer border-none p-0 bg-transparent"
-                    title="Restore this drawing" aria-label="Restore this drawing"
-                  >
+            <button
+              onClick={handleSaveSnapshot}
+              className="snap-add flex items-center justify-center cursor-pointer"
+              style={{ aspectRatio: '1 / 1' }}
+              title="Save current drawing" aria-label="Save current drawing"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+            {snapshots.map((item) => (
+              <div key={item.id} className="snap-item group relative rounded-[10px] overflow-hidden">
+                <button
+                  onClick={() => handleRestoreSnapshot(item)}
+                  className="block w-full cursor-pointer border-none p-0 bg-transparent"
+                  title="Restore this drawing" aria-label="Restore this drawing"
+                >
+                  {item.previewSvg ? (
+                    <div
+                      className="snap-preview block w-full"
+                      style={{ aspectRatio: '1 / 1', color: 'var(--c-ink)', background: 'color-mix(in srgb, var(--c-line) 20%, transparent)' }}
+                      dangerouslySetInnerHTML={{ __html: item.previewSvg }}
+                    />
+                  ) : (
                     <img
                       src={item.preview} alt="snapshot preview"
                       className="block w-full"
                       style={{ aspectRatio: '1 / 1', objectFit: 'contain', background: 'color-mix(in srgb, var(--c-line) 20%, transparent)' }}
                     />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteSnapshot(item.id)}
-                    className="snap-del absolute top-1 right-1 w-6 h-6 flex items-center justify-center rounded-md border-none cursor-pointer"
-                    style={{ background: 'var(--c-panel)', color: 'var(--c-text)' }}
-                    title="Delete" aria-label="Delete snapshot"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
-                  </button>
-                </div>
-              ))
-            )}
+                  )}
+                </button>
+                <button
+                  onClick={() => handleDeleteSnapshot(item.id)}
+                  className="snap-del absolute top-1 right-1 w-6 h-6 flex items-center justify-center rounded-md border-none cursor-pointer"
+                  style={{ background: 'var(--c-panel)', color: 'var(--c-text)' }}
+                  title="Delete" aria-label="Delete snapshot"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                </button>
+              </div>
+            ))}
           </div>
         </aside>
       )}
