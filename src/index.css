@@ -141,10 +141,12 @@ body { margin: 0; font-family: var(--font-sans); color: var(--c-text); backgroun
 /* history dock snapshot: thumbnail with a delete button revealed on hover */
 .snap-item { border: 1.5px solid var(--c-line); transition: border-color 0.15s ease; }
 .snap-item:hover { border-color: #ffc800; }
+.snap-item:hover .snap-preview, .snap-item:hover img { background: #ffc800 !important; }
 .snap-del { opacity: 0; transition: opacity 0.15s ease; }
 .snap-item:hover .snap-del { opacity: 1; }
 .snap-del:hover { color: #e0533f !important; }
 .snap-preview svg { display: block; width: 100%; height: 100%; }
+.snap-preview, .snap-item img { transition: background-color 0.15s ease; }
 
 /* history dock: dashed "add snapshot" tile */
 .snap-add {
