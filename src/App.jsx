@@ -174,7 +174,7 @@ export default function App() {
             color: 'var(--c-text)',
           }}
         >
-          <div className="menu-scroll flex gap-2 overflow-x-auto" style={{ maxWidth: '100%' }}>
+          <div className="menu-scroll flex gap-2 overflow-x-auto pb-1" style={{ maxWidth: '100%' }}>
             <button
               onClick={handleSaveSnapshot}
               className="snap-pop snap-add flex items-center justify-center cursor-pointer shrink-0"
