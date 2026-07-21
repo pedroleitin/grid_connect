@@ -33,6 +33,11 @@ export default function App() {
   // history dock: saved drawing snapshots (persisted in localStorage)
   const [snapshots, setSnapshots] = useState(loadHistory)
   const [dockOpen, setDockOpen] = useState(() => loadHistory().length > 0)
+  const [dockClosing, setDockClosing] = useState(false)
+
+  // close with an exit animation: keep the dock mounted until it finishes
+  const closeDock = () => { setDockOpen(false); setDockClosing(true) }
+  const toggleDock = () => (dockOpen ? closeDock() : setDockOpen(true))
 
   useEffect(() => { saveHistory(snapshots) }, [snapshots])
 
@@ -52,6 +57,7 @@ export default function App() {
       previewSvg: snap.previewSvg,
     }
     setSnapshots((s) => [item, ...s])
+    setDockClosing(false)
     setDockOpen(true)
   }
 
@@ -156,9 +162,10 @@ export default function App() {
       </main>
 
       {/* history dock: popover above the footer bar with saved-snapshot previews */}
-      {dockOpen && (
+      {(dockOpen || dockClosing) && (
         <div
-          className="history-pop fixed z-[55] bg-panel rounded-[15px] p-2"
+          className={'history-pop fixed z-[55] bg-panel rounded-[15px] p-2' + (dockClosing ? ' history-pop--closing' : '')}
+          onAnimationEnd={(e) => { if (e.animationName === 'history-pop-out') setDockClosing(false) }}
           style={{
             left: `calc(50% + ${leftInset / 2}px)`, bottom: 74,
             transform: 'translateX(-50%)', maxWidth: `calc(100vw - ${leftInset + 32}px)`,
@@ -224,7 +231,7 @@ export default function App() {
       >
         <button
           className={'tool-btn icon-btn' + (dockOpen ? ' active' : '')}
-          onClick={() => (snapshots.length === 0 ? handleSaveSnapshot() : setDockOpen((o) => !o))}
+          onClick={() => (snapshots.length === 0 ? handleSaveSnapshot() : toggleDock())}
           title="History" aria-label="Toggle history"
         >
           <MotionIcon />

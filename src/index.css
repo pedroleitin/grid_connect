@@ -247,7 +247,12 @@ canvas { display: block; cursor: crosshair; }
   from { opacity: 0; transform: translateX(-50%) translateY(10px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+@keyframes history-pop-out {
+  from { opacity: 1; transform: translateX(-50%) translateY(0); }
+  to   { opacity: 0; transform: translateX(-50%) translateY(10px); }
+}
 .history-pop { animation: history-pop-in 0.22s ease-out; }
+.history-pop--closing { animation: history-pop-out 0.18s ease-in forwards; }
 
 /* staggered appearance for each saved snapshot / add tile */
 @keyframes snap-pop-in {
