@@ -188,8 +188,8 @@ export default function Sidebar({
 
       {/* action buttons pinned to the bottom */}
       <div className="p-4 divider border-t border-[#d7d2c7]/25 flex gap-2">
-        <button className="btn-menu flex-1 py-2 text-[13px] font-medium inline-flex items-center justify-center" onClick={onResetCircles}>Reset<Kbd k="r" /></button>
-        <button className="btn-menu flex-1 py-2 text-[13px] font-medium inline-flex items-center justify-center" onClick={onClear}>Clear<Kbd k="c" /></button>
+        <button className="tool-btn flex-1" onClick={onResetCircles}>Reset<Kbd k="r" /></button>
+        <button className="tool-btn flex-1" onClick={onClear}>Clear<Kbd k="c" /></button>
       </div>
     </div>
   )

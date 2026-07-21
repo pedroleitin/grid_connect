@@ -227,14 +227,14 @@ export default function App() {
         </button>
         <span className="tb-sep" />
         <button
-          className="btn-menu flex items-center gap-2 px-4 py-2 text-[13px] font-medium"
+          className="tool-btn gap-2"
           onClick={() => canvasApi.current?.exportSVG()}
           aria-label="Download SVG"
         >
           <DownloadIcon />SVG
         </button>
         <button
-          className="btn-menu flex items-center gap-2 px-4 py-2 text-[13px] font-medium"
+          className="tool-btn gap-2"
           onClick={() => canvasApi.current?.exportPNG()}
           aria-label="Download PNG"
         >
