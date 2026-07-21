@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import GridCanvas from './components/GridCanvas'
 
-const DOCK_W = 158                     // history dock width (px)
 const STORE_KEY = 'gconnect.history.v1' // localStorage key for saved snapshots
 
 function loadHistory() {
@@ -67,7 +66,7 @@ export default function App() {
 
   const handleDeleteSnapshot = (id) => setSnapshots((s) => s.filter((x) => x.id !== id))
 
-  const leftInset = 330 + (dockOpen ? DOCK_W + 12 : 0)
+  const leftInset = 330
 
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
@@ -156,45 +155,21 @@ export default function App() {
         />
       </main>
 
-      {/* history dock: floating open button (hidden while the dock is open) */}
-      {!dockOpen && (
-        <button
-          onClick={() => setDockOpen(true)}
-          className="btn-menu fixed z-[60] w-11 h-11 flex items-center justify-center p-0 rounded-[12px]"
-          style={{ left: 340, top: '50%', transform: 'translateY(-50%)' }}
-          title="Open history" aria-label="Open history"
-        >
-          <MotionIcon />
-        </button>
-      )}
-
+      {/* history dock: popover above the footer bar with saved-snapshot previews */}
       {dockOpen && (
-        <aside
-          className="fixed z-[55] flex flex-col rounded-[15px] overflow-hidden bg-panel"
-          style={{ left: 338, top: 10, bottom: 10, width: DOCK_W, color: 'var(--c-text)' }}
+        <div
+          className="fixed z-[55] bg-panel rounded-[15px] p-2"
+          style={{
+            left: `calc(50% + ${leftInset / 2}px)`, bottom: 74,
+            transform: 'translateX(-50%)', maxWidth: `calc(100vw - ${leftInset + 32}px)`,
+            color: 'var(--c-text)',
+          }}
         >
-          <div className="flex items-center justify-between px-3 pt-3 pb-2">
-            <span className="text-sm font-medium" style={{ opacity: 0.7 }}>
-              History{snapshots.length ? ` (${snapshots.length})` : ''}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setDockOpen(false)}
-                className="eye-btn w-6 h-6 flex items-center justify-center rounded-md border-none bg-transparent cursor-pointer"
-                style={{ color: 'var(--c-text)' }}
-                title="Hide history" aria-label="Hide history"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div className="menu-scroll flex-1 overflow-y-auto px-3 pb-3 flex flex-col gap-2">
+          <div className="menu-scroll flex gap-2 overflow-x-auto" style={{ maxWidth: '100%' }}>
             <button
               onClick={handleSaveSnapshot}
-              className="snap-add flex items-center justify-center cursor-pointer"
-              style={{ aspectRatio: '1 / 1' }}
+              className="snap-add flex items-center justify-center cursor-pointer shrink-0"
+              style={{ width: 92, height: 92 }}
               title="Save current drawing" aria-label="Save current drawing"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -202,23 +177,23 @@ export default function App() {
               </svg>
             </button>
             {snapshots.map((item) => (
-              <div key={item.id} className="snap-item group relative rounded-[10px] overflow-hidden">
+              <div key={item.id} className="snap-item group relative rounded-[10px] overflow-hidden shrink-0" style={{ width: 92, height: 92 }}>
                 <button
                   onClick={() => handleRestoreSnapshot(item)}
-                  className="block w-full cursor-pointer border-none p-0 bg-transparent"
+                  className="block w-full h-full cursor-pointer border-none p-0 bg-transparent"
                   title="Restore this drawing" aria-label="Restore this drawing"
                 >
                   {item.previewSvg ? (
                     <div
-                      className="snap-preview block w-full"
-                      style={{ aspectRatio: '1 / 1', color: 'var(--c-ink)', background: 'color-mix(in srgb, var(--c-line) 20%, transparent)' }}
+                      className="snap-preview block w-full h-full"
+                      style={{ color: 'var(--c-ink)', background: 'color-mix(in srgb, var(--c-line) 20%, transparent)' }}
                       dangerouslySetInnerHTML={{ __html: item.previewSvg }}
                     />
                   ) : (
                     <img
                       src={item.preview} alt="snapshot preview"
-                      className="block w-full"
-                      style={{ aspectRatio: '1 / 1', objectFit: 'contain', background: 'color-mix(in srgb, var(--c-line) 20%, transparent)' }}
+                      className="block w-full h-full"
+                      style={{ objectFit: 'contain', background: 'color-mix(in srgb, var(--c-line) 20%, transparent)' }}
                     />
                   )}
                 </button>
@@ -235,14 +210,22 @@ export default function App() {
               </div>
             ))}
           </div>
-        </aside>
+        </div>
       )}
 
-      {/* export bar centered at the bottom of the canvas area */}
+      {/* footer bar: history toggle + export, aligned with the undo/redo & zoom boxes */}
       <div
-        className="fixed bottom-4 z-50 flex gap-2 p-2 rounded-[15px]"
-        style={{ left: `calc(50% + ${leftInset / 2}px)`, transform: 'translateX(-50%)', color: 'var(--c-text)' }}
+        className="zoombox"
+        style={{ position: 'fixed', bottom: 16, left: `calc(50% + ${leftInset / 2}px)`, right: 'auto', transform: 'translateX(-50%)', zIndex: 50, color: 'var(--c-text)' }}
       >
+        <button
+          className={'tool-btn icon-btn' + (dockOpen ? ' active' : '')}
+          onClick={() => setDockOpen((o) => !o)}
+          title="History" aria-label="Toggle history"
+        >
+          <MotionIcon />
+        </button>
+        <span className="tb-sep" />
         <button
           className="btn-menu flex items-center gap-2 px-4 py-2 text-[13px] font-medium"
           onClick={() => canvasApi.current?.exportSVG()}
