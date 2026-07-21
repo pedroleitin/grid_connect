@@ -133,6 +133,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
 
   // view transform: world -> screen is  screen = world * scale + (tx, ty)
   const viewRef = useRef({ scale: 1, tx: 0, ty: 0 })
+  const viewAnimRef = useRef(null)  // active view tween: { from, to, start, dur }
   const touchedRef = useRef(false)  // user panned/zoomed manually -> stop auto-fitting
   const ctrlRef = useRef(null)      // zoom controls exposed to the overlay buttons
   const panToolRef = useRef(false)  // hand tool: left-drag pans instead of drawing
@@ -235,7 +236,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   useEffect(() => {
     insetRef.current = leftInset
     bottomInsetRef.current = bottomInset
-    ctrlRef.current?.fit()
+    ctrlRef.current?.fit(true)
   }, [leftInset, bottomInset])
 
   // create the p5 instance (once)
@@ -279,7 +280,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         const f = ns / v.scale
         setView({ scale: ns, tx: sx - (sx - v.tx) * f, ty: sy - (sy - v.ty) * f })
       }
-      const fit = () => {
+      const fit = (animate = false) => {
         const el = holderRef.current; if (!el) return
         const inset = insetRef.current
         const bottom = bottomInsetRef.current
@@ -288,7 +289,13 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         const { w, h } = canvasSize(cfgRef.current.cols, cfgRef.current.rows, cfgRef.current.gap)
         const margin = 60
         const scale = clampScale(Math.min((availW - margin) / w, (availH - margin) / h))
-        setView({ scale, tx: inset + (availW - w * scale) / 2, ty: (availH - h * scale) / 2 })
+        const target = { scale, tx: inset + (availW - w * scale) / 2, ty: (availH - h * scale) / 2 }
+        if (animate) {
+          viewAnimRef.current = { from: { ...viewRef.current }, to: target, start: performance.now(), dur: 320 }
+        } else {
+          viewAnimRef.current = null
+          setView(target)
+        }
       }
       ctrlRef.current = {
         fit,
@@ -883,6 +890,18 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           if (vmax < calmFor(cfg.tension)) simRef.current.active = false
         }
 
+        // animate the view (zoom/recenter) when the dock opens/closes
+        if (viewAnimRef.current) {
+          const a = viewAnimRef.current
+          let t = (performance.now() - a.start) / a.dur
+          if (t >= 1) { t = 1; viewAnimRef.current = null }
+          const e = easeInOut(t)
+          setView({
+            scale: a.from.scale + (a.to.scale - a.from.scale) * e,
+            tx: a.from.tx + (a.to.tx - a.from.tx) * e,
+            ty: a.from.ty + (a.to.ty - a.from.ty) * e,
+          })
+        }
         const v = viewRef.current
         p.push()
         p.translate(v.tx, v.ty)
