@@ -158,7 +158,7 @@ export default function App() {
       {/* history dock: popover above the footer bar with saved-snapshot previews */}
       {dockOpen && (
         <div
-          className="fixed z-[55] bg-panel rounded-[15px] p-2"
+          className="history-pop fixed z-[55] bg-panel rounded-[15px] p-2"
           style={{
             left: `calc(50% + ${leftInset / 2}px)`, bottom: 74,
             transform: 'translateX(-50%)', maxWidth: `calc(100vw - ${leftInset + 32}px)`,
@@ -220,7 +220,7 @@ export default function App() {
       >
         <button
           className={'tool-btn icon-btn' + (dockOpen ? ' active' : '')}
-          onClick={() => setDockOpen((o) => !o)}
+          onClick={() => (snapshots.length === 0 ? handleSaveSnapshot() : setDockOpen((o) => !o))}
           title="History" aria-label="Toggle history"
         >
           <MotionIcon />

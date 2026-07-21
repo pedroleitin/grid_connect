@@ -239,3 +239,10 @@ canvas { display: block; cursor: crosshair; }
   background: #ffc800; color: var(--c-accent-ink); font-weight: 600;
 }
 .tb-sep { width: 1px; align-self: stretch; background: var(--c-line); margin: 2px; }
+
+/* history dock popover: slide up + fade in on appear */
+@keyframes history-pop-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.history-pop { animation: history-pop-in 0.22s ease-out; }
