@@ -87,6 +87,8 @@ const edgeKey = (a, b) => {
 // random pleasant color (fixed sat/lightness, random hue) as a hex string
 // smoothstep easing for animation progress (0..1)
 const easeInOut = (t) => t * t * (3 - 2 * t)
+// ease-out cubic: fast start, gentle deceleration (used for the dock zoom)
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3)
 
 const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, smoothJoins, hideGuides, editMode, theme, leftInset = 0, bottomInset = 0 }, ref) {
   const holderRef = useRef(null)   // p5 host container (pans/zooms)
@@ -291,7 +293,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         const scale = clampScale(Math.min((availW - margin) / w, (availH - margin) / h))
         const target = { scale, tx: inset + (availW - w * scale) / 2, ty: (availH - h * scale) / 2 }
         if (animate) {
-          viewAnimRef.current = { from: { ...viewRef.current }, to: target, start: performance.now(), dur: 320 }
+          viewAnimRef.current = { from: { ...viewRef.current }, to: target, start: performance.now(), dur: 420 }
         } else {
           viewAnimRef.current = null
           setView(target)
@@ -895,7 +897,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           const a = viewAnimRef.current
           let t = (performance.now() - a.start) / a.dur
           if (t >= 1) { t = 1; viewAnimRef.current = null }
-          const e = easeInOut(t)
+          const e = easeOutCubic(t)
           setView({
             scale: a.from.scale + (a.to.scale - a.from.scale) * e,
             tx: a.from.tx + (a.to.tx - a.from.tx) * e,
