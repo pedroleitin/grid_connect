@@ -186,7 +186,12 @@ export default function App() {
               </svg>
             </button>
             {snapshots.length > 0 && (
-              <div className="menu-scroll flex gap-2 overflow-x-auto pb-1 min-w-0">
+              <div
+                className="menu-scroll flex gap-2 overflow-x-auto pb-1 min-w-0"
+                onWheel={(e) => {
+                  if (e.deltaX === 0 && e.deltaY !== 0) { e.currentTarget.scrollLeft += e.deltaY; e.preventDefault() }
+                }}
+              >
                 {snapshots.map((item, i) => (
                   <div
                     key={item.id}
