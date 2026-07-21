@@ -168,16 +168,20 @@ export default function App() {
           <div className="menu-scroll flex gap-2 overflow-x-auto" style={{ maxWidth: '100%' }}>
             <button
               onClick={handleSaveSnapshot}
-              className="snap-add flex items-center justify-center cursor-pointer shrink-0"
-              style={{ width: 92, height: 92 }}
+              className="snap-pop snap-add flex items-center justify-center cursor-pointer shrink-0"
+              style={{ width: 92, height: 92, animationDelay: '90ms' }}
               title="Save current drawing" aria-label="Save current drawing"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
               </svg>
             </button>
-            {snapshots.map((item) => (
-              <div key={item.id} className="snap-item group relative rounded-[10px] overflow-hidden shrink-0" style={{ width: 92, height: 92 }}>
+            {snapshots.map((item, i) => (
+              <div
+                key={item.id}
+                className="snap-pop snap-item group relative rounded-[10px] overflow-hidden shrink-0"
+                style={{ width: 92, height: 92, animationDelay: `${i * 55 + 145}ms` }}
+              >
                 <button
                   onClick={() => handleRestoreSnapshot(item)}
                   className="block w-full h-full cursor-pointer border-none p-0 bg-transparent"

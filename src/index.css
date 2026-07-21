@@ -246,3 +246,10 @@ canvas { display: block; cursor: crosshair; }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 .history-pop { animation: history-pop-in 0.22s ease-out; }
+
+/* staggered appearance for each saved snapshot / add tile */
+@keyframes snap-pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.snap-pop { animation: snap-pop-in 0.24s ease-out both; }
