@@ -138,6 +138,13 @@ body { margin: 0; font-family: var(--font-sans); color: var(--c-text); backgroun
 .eye-btn:hover { background-color: rgba(0, 0, 0, 0.07); }
 [data-theme="dark"] .eye-btn:hover { background-color: rgba(255, 255, 255, 0.1); }
 
+/* history dock snapshot: thumbnail with a delete button revealed on hover */
+.snap-item { border: 1.5px solid var(--c-line); transition: border-color 0.15s ease; }
+.snap-item:hover { border-color: #ffc800; }
+.snap-del { opacity: 0; transition: opacity 0.15s ease; }
+.snap-item:hover .snap-del { opacity: 1; }
+.snap-del:hover { color: #e0533f !important; }
+
 canvas { display: block; cursor: crosshair; }
 
 /* ============================================================

@@ -228,6 +228,13 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     return () => cancelAnimationFrame(id)
   }, [theme])
 
+  // the left panel (sidebar + optional history dock) changed width: recenter and
+  // refit the content so it stays fully visible in the shrunken viewport
+  useEffect(() => {
+    insetRef.current = leftInset
+    ctrlRef.current?.fit()
+  }, [leftInset])
+
   // create the p5 instance (once)
   useEffect(() => {
     const sketch = (p) => {
@@ -1104,6 +1111,44 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     },
     undo: doUndo,
     redo: doRedo,
+    // serializable drawing state + an SVG preview data-URI for the history dock
+    snapshot() {
+      const cfg = cfgRef.current
+      const drawing = {
+        ropes: ropesRef.current.map((r) => ({ loop: (r.loop || []).map((g) => ({ gx: g.gx, gy: g.gy })) })),
+        paint: { nodes: [...paintNodesRef.current], edges: [...paintEdgesRef.current] },
+        sizes: [...sizesRef.current.entries()],
+        ignored: [...ignoredRef.current],
+      }
+      const paint = { nodes: paintNodesRef.current, edges: paintEdgesRef.current }
+      const svg = buildSVG(ropesRef.current, paint, cfg, colRef.current.ink)
+      const b64 = btoa(unescape(encodeURIComponent(svg)))
+      return { drawing, preview: 'data:image/svg+xml;base64,' + b64 }
+    },
+    // replace the current drawing with a saved snapshot (cfg = its saved geometry,
+    // so ropes re-seed at the right pitch before the parent's state syncs cfgRef)
+    restore(drawing, cfg) {
+      if (!drawing) return
+      if (cfg) cfgRef.current = { ...cfgRef.current, ...cfg, sizes: sizesRef.current, ignored: ignoredRef.current }
+      sizesRef.current.clear()
+      for (const [k, val] of drawing.sizes || []) sizesRef.current.set(k, val)
+      ignoredRef.current.clear()
+      for (const k of drawing.ignored || []) ignoredRef.current.add(k)
+      ropesRef.current = (drawing.ropes || []).map((r) => {
+        const rope = { loop: (r.loop || []).map((g) => ({ gx: g.gx, gy: g.gy })) }
+        reseedRope(rope, cfgRef.current)
+        return rope
+      })
+      paintNodesRef.current = new Set(drawing.paint?.nodes || [])
+      paintEdgesRef.current = new Set(drawing.paint?.edges || [])
+      histRef.current = []; redoRef.current = []
+      curRef.current = null; polyRef.current = null; polyCursorRef.current = null
+      editRopeRef.current = null; editDragRef.current = null
+      paintDragRef.current = null; paintSelRef.current = null; paintHoverRef.current = null
+      hoverAnimRef.current.clear(); paintAnimRef.current.clear()
+      setCanUndo(false); setCanRedo(false)
+      wake()
+    },
     exportSVG() {
       const paint = { nodes: paintNodesRef.current, edges: paintEdgesRef.current }
       const svg = buildSVG(ropesRef.current, paint, cfgRef.current, colRef.current.ink)

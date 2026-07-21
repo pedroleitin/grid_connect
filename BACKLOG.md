@@ -12,7 +12,11 @@
   A **Corner radius** slider (20–100%) controls the rounding of both guides and the rope contour.
 - [ ] **Erase** tool: remove drawn ropes (or parts of them) directly on the canvas.
 - [ ] **Presets**: save/load named configurations (grid, sizes, style, mode, drawings).
-- [ ] **History dock**: a dock of thumbnail previews of previously made drawings, to revisit/restore.
+- [x] **History dock**: a floating image button (right of the sidebar, vertically centered)
+  saves the current drawing (ropes + paint + per-circle sizes/ignored + full config) and an
+  SVG preview into a dock fixed beside the sidebar; snapshots persist in localStorage. Clicking
+  a preview restores that drawing; hover reveals a delete button. Opening the dock re-fits and
+  recenters the canvas so it stays fully visible.
 - [x] **Edit drawing** (Mode → Edit): reshape an existing rope — click it to select (dashed
   outline + vertex handles), drag its interior/outline to move the whole loop (re-wraps whatever
   pins are now underneath), or drag a vertex handle to reshape. Undo/redo covers edits.

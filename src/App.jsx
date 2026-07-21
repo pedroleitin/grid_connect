@@ -2,6 +2,17 @@ import { useEffect, useRef, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import GridCanvas from './components/GridCanvas'
 
+const DOCK_W = 158                     // history dock width (px)
+const STORE_KEY = 'gconnect.history.v1' // localStorage key for saved snapshots
+
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || [] } catch { return [] }
+}
+function saveHistory(items) {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(items)) } catch { /* quota/full: ignore */ }
+}
+
+
 export default function App() {
   const [cols, setCols] = useState(6)
   const [rows, setRows] = useState(6)
@@ -19,6 +30,44 @@ export default function App() {
   const [mode, setMode] = useState('draw')       // 'draw' (rope) | 'paint' (blob connect)
   const [drawTool, setDrawTool] = useState('points') // 'points' (polygon) | 'free' (freehand)
   const canvasApi = useRef(null)
+
+  // history dock: saved drawing snapshots (persisted in localStorage)
+  const [snapshots, setSnapshots] = useState(loadHistory)
+  const [dockOpen, setDockOpen] = useState(() => loadHistory().length > 0)
+
+  useEffect(() => { saveHistory(snapshots) }, [snapshots])
+
+  const captureConfig = () => ({
+    cols, rows, cellSize, gap, tension, style, shape, cornerRadius,
+    blob, smoothJoins, mode, drawTool, hideGuides,
+  })
+
+  const handleSaveSnapshot = () => {
+    const snap = canvasApi.current?.snapshot()
+    if (!snap) return
+    const item = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      at: Date.now(),
+      config: captureConfig(),
+      drawing: snap.drawing,
+      preview: snap.preview,
+    }
+    setSnapshots((s) => [item, ...s])
+    setDockOpen(true)
+  }
+
+  const handleRestoreSnapshot = (item) => {
+    const c = item.config
+    setCols(c.cols); setRows(c.rows); setCellSize(c.cellSize); setGap(c.gap)
+    setTension(c.tension); setStyle(c.style); setShape(c.shape); setCornerRadius(c.cornerRadius)
+    setBlob(c.blob); setSmoothJoins(c.smoothJoins); setMode(c.mode); setDrawTool(c.drawTool)
+    setHideGuides(c.hideGuides); setEditTool('off')
+    canvasApi.current?.restore(item.drawing, c)
+  }
+
+  const handleDeleteSnapshot = (id) => setSnapshots((s) => s.filter((x) => x.id !== id))
+
+  const leftInset = 330 + (dockOpen ? DOCK_W + 12 : 0)
 
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
@@ -103,14 +152,94 @@ export default function App() {
           cornerRadius={cornerRadius} mode={editTool === 'path' ? 'edit' : mode} blob={blob}
           drawTool={drawTool} smoothJoins={smoothJoins}
           hideGuides={hideGuides} editMode={editTool === 'sizes'} theme={darkMode ? 'dark' : 'light'}
-          leftInset={330}
+          leftInset={leftInset}
         />
       </main>
+
+      {/* history dock: floating open button (hidden while the dock is open) */}
+      {!dockOpen && (
+        <button
+          onClick={() => setDockOpen(true)}
+          className="btn-menu fixed z-[60] w-11 h-11 flex items-center justify-center p-0 rounded-[12px]"
+          style={{ left: 340, top: '50%', transform: 'translateY(-50%)' }}
+          title="Open history" aria-label="Open history"
+        >
+          <MotionIcon />
+        </button>
+      )}
+
+      {dockOpen && (
+        <aside
+          className="fixed z-[55] flex flex-col rounded-[15px] overflow-hidden bg-panel"
+          style={{ left: 338, top: 10, bottom: 10, width: DOCK_W, color: 'var(--c-text)' }}
+        >
+          <div className="flex items-center justify-between px-3 pt-3 pb-2">
+            <span className="text-sm font-medium" style={{ opacity: 0.7 }}>
+              History{snapshots.length ? ` (${snapshots.length})` : ''}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleSaveSnapshot}
+                className="tool-btn icon-btn"
+                style={{ width: 26, height: 26 }}
+                title="Save current drawing" aria-label="Save current drawing"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setDockOpen(false)}
+                className="eye-btn w-6 h-6 flex items-center justify-center rounded-md border-none bg-transparent cursor-pointer"
+                style={{ color: 'var(--c-text)' }}
+                title="Hide history" aria-label="Hide history"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div className="menu-scroll flex-1 overflow-y-auto px-3 pb-3 flex flex-col gap-2">
+            {snapshots.length === 0 ? (
+              <p className="text-xs mt-2" style={{ opacity: 0.45, lineHeight: 1.5 }}>
+                Save the current drawing with the + button to build your gallery.
+              </p>
+            ) : (
+              snapshots.map((item) => (
+                <div key={item.id} className="snap-item group relative rounded-[10px] overflow-hidden">
+                  <button
+                    onClick={() => handleRestoreSnapshot(item)}
+                    className="block w-full cursor-pointer border-none p-0 bg-transparent"
+                    title="Restore this drawing" aria-label="Restore this drawing"
+                  >
+                    <img
+                      src={item.preview} alt="snapshot preview"
+                      className="block w-full"
+                      style={{ aspectRatio: '1 / 1', objectFit: 'contain', background: 'color-mix(in srgb, var(--c-line) 20%, transparent)' }}
+                    />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteSnapshot(item.id)}
+                    className="snap-del absolute top-1 right-1 w-6 h-6 flex items-center justify-center rounded-md border-none cursor-pointer"
+                    style={{ background: 'var(--c-panel)', color: 'var(--c-text)' }}
+                    title="Delete" aria-label="Delete snapshot"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
+      )}
 
       {/* export bar centered at the bottom of the canvas area */}
       <div
         className="fixed bottom-4 z-50 flex gap-2 p-2 rounded-[15px]"
-        style={{ left: 'calc(50% + 165px)', transform: 'translateX(-50%)', color: 'var(--c-text)' }}
+        style={{ left: `calc(50% + ${leftInset / 2}px)`, transform: 'translateX(-50%)', color: 'var(--c-text)' }}
       >
         <button
           className="btn-menu flex items-center gap-2 px-4 py-2 text-[13px] font-medium"
@@ -135,6 +264,14 @@ function DownloadIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  )
+}
+
+function MotionIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
+      <path d="M480-80q-33 0-56.5-23.5T400-160v-320q0-33 23.5-56.5T480-560h320q33 0 56.5 23.5T880-480v320q0 33-23.5 56.5T800-80H480Zm0-80h320v-320H480v320Zm-240-80v-400q0-33 23.5-56.5T320-720h400v80H320v400h-80ZM80-400v-400q0-33 23.5-56.5T160-880h400v80H160v400H80Zm400 240v-320 320Z" />
     </svg>
   )
 }
