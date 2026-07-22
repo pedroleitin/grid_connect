@@ -18,13 +18,14 @@ All notable changes to this project. Newest first.
   **Path** edit mode is active so the pins under them stay visible.
 
 ### Added
-- **Randomize — Channels / Sinuosity + seed re-roll**: the single **Complexity** slider is split into
+- **Randomize — Channels / Sinuosity + live refine**: the single **Complexity** slider is split into
   two — **Channels** (how branchy/lobed the generated shapes are: low = compact round blobs, high =
-  organic multi-lobed forms) and **Sinuosity** (how much those arms wander/wind). Generation is now
-  driven by a seeded PRNG: the **Randomize** button (and its slider tweaks) reproduce the same layout
-  for a given seed, while a new **dice re-roll** button and the **G** shortcut pick a fresh seed.
-  Branchy clusters are de-pinched (diagonal-only corner touches filled) so the shrink-wrap always
-  renders a single clean, connected shape instead of tearing thin junctions apart.
+  organic multi-lobed forms) and **Sinuosity** (how much those arms wander/wind). Generation is
+  driven by a seeded PRNG: the **Randomize** button (and the **G** shortcut) picks a fresh seed each
+  time, and once a layout exists, dragging any Randomize slider **refines it live** on the current
+  seed — so you can dial in the shape without re-rolling. Branchy clusters are de-pinched
+  (diagonal-only corner touches filled) so the shrink-wrap always renders a single clean, connected
+  shape instead of tearing thin junctions apart.
 - **Random connection colors** (Paint mode): each painted connection now gets its own random color;
   the pins (circles/squares) stay the default ink color. The color is assigned when the link is
   created and persists through undo/redo; both the canvas render and the SVG/PNG export carry it.

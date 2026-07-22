@@ -36,6 +36,8 @@ export default function App() {
   const [rndOpen, setRndOpen] = useState(false)  // randomize accordion open state
   const rndRef = useRef({ fill, single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, seed: rndSeed })
   useEffect(() => { rndRef.current = { fill, single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, seed: rndSeed } }, [fill, rndSingle, rndChannels, rndSinuosity, rndSeed])
+  // true once a random layout exists, so slider tweaks refine it live (same seed)
+  const rndActiveRef = useRef(false)
   const canvasApi = useRef(null)
 
   // history dock: saved drawing snapshots (persisted in localStorage)
@@ -84,12 +86,22 @@ export default function App() {
   const handleRandomize = () =>
     canvasApi.current?.randomize(fill, { single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, seed: rndSeed })
 
-  // Re-roll: pick a fresh seed and generate a new layout with it.
+  // Randomize button / G shortcut: pick a fresh seed and generate a new layout.
   const handleReroll = () => {
     const s = (Math.random() * 2 ** 32) >>> 0
     setRndSeed(s)
+    rndActiveRef.current = true
     canvasApi.current?.randomize(fill, { single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, seed: s })
   }
+
+  // Once a random layout exists, dragging the Randomize sliders refines it live
+  // (keeps the current seed, so only the parameter you moved changes the shape).
+  useEffect(() => {
+    if (rndActiveRef.current) handleRandomize()
+  }, [fill, rndSingle, rndChannels, rndSinuosity]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // clearing the canvas stops live slider refinement until the next Randomize
+  const handleClear = () => { rndActiveRef.current = false; canvasApi.current?.clear() }
 
   const leftInset = 330
   // reserve vertical space for the history dock so it never overlaps the grid
@@ -122,9 +134,9 @@ export default function App() {
         case 'p': setShape((v) => (v === 'circle' ? 'square' : 'circle')); break
         case 'h': setHideGuides((v) => !v); break
         case 'e': setEditTool((v) => (v === 'off' ? 'sizes' : v === 'sizes' ? 'path' : 'off')); break
-        case 'c': canvasApi.current?.clear(); break
+        case 'c': handleClear(); break
         case 'r': canvasApi.current?.resetCircles(); break
-        case 'g': { const o = rndRef.current; const s = (Math.random() * 2 ** 32) >>> 0; setRndSeed(s); canvasApi.current?.randomize(o.fill, { single: o.single, channels: o.channels, sinuosity: o.sinuosity, seed: s }); break }
+        case 'g': { const o = rndRef.current; const s = (Math.random() * 2 ** 32) >>> 0; setRndSeed(s); rndActiveRef.current = true; canvasApi.current?.randomize(o.fill, { single: o.single, channels: o.channels, sinuosity: o.sinuosity, seed: s }); break }
         default: return
       }
     }
@@ -155,9 +167,8 @@ export default function App() {
         rndSinuosity={rndSinuosity} setRndSinuosity={setRndSinuosity}
         rndSeed={rndSeed}
         rndOpen={rndOpen} setRndOpen={setRndOpen}
-        onRandomize={handleRandomize}
         onReroll={handleReroll}
-        onClear={() => canvasApi.current?.clear()}
+        onClear={handleClear}
         onResetCircles={() => canvasApi.current?.resetCircles()}
       />
 
