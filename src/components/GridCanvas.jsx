@@ -201,7 +201,15 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   // cells becomes a shrink-wrap rope; in Paint mode clusters become connected
   // node/edge blobs. Replaces the current drawing.
   const randomize = (fill, opts = {}) => {
-    const { single = false, complexity = 50 } = opts
+    const { single = false, channels = 50, sinuosity = 50 } = opts
+    const seed = (opts.seed == null ? (Math.random() * 2 ** 32) : opts.seed) >>> 0
+    // seeded PRNG (mulberry32) so a given seed reproduces the same drawing
+    const rng = ((a) => () => {
+      a |= 0; a = (a + 0x6D2B79F5) | 0
+      let t = Math.imul(a ^ (a >>> 15), 1 | a)
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    })(seed)
     const cfg = cfgRef.current
     const rows = cfg.rows, cols = cfg.cols
     const ig = ignoredRef.current
@@ -216,16 +224,19 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     const target = Math.max(1, Math.round(f * total))
     // cap a single element to a fraction of the grid so high fill yields several
     const cap = Math.max(1, Math.round(total * 0.35))
-    const comp = Math.max(0, Math.min(1, (complexity || 0) / 100))
+    const ch = Math.max(0, Math.min(1, (channels || 0) / 100))    // corridor density/amount
+    const sin = Math.max(0, Math.min(1, (sinuosity || 0) / 100))  // corridor tortuosity
 
     const avail = new Set(cells)
     const key = (r, c) => r + ',' + c
     const parse = (k) => { const i = k.indexOf(','); return { r: +k.slice(0, i), c: +k.slice(i + 1) } }
-    const pick = (set) => { const a = [...set]; return a[(Math.random() * a.length) | 0] }
+    const pick = (set) => { const a = [...set]; return a[(rng() * a.length) | 0] }
 
-    // grow a contiguous cluster from a seed up to `size` cells. Complexity biases
-    // the growth: low = compact (frontier cell nearest the centroid → round blobs),
-    // high = branchy (random frontier cell → irregular tendrils).
+    // grow a contiguous cluster from a seed up to `size` cells. Channels drives
+    // branchiness: low → compact round blob (frontier nearest the centroid);
+    // high → grows arms/lobes outward (frontier farthest from the centroid), which
+    // the shrink-wrap renders as concave, complex shapes. Sinuosity jitters the
+    // outward pick so arms wander/wind rather than shoot straight out.
     const grow = (seed, size, diag) => {
       const cluster = new Set([seed])
       const frontier = []
@@ -242,20 +253,26 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       pushN(seed)
       const s = parse(seed); let sumR = s.r, sumC = s.c, n = 1
       while (cluster.size < size && frontier.length) {
-        let idx
-        if (Math.random() < comp * 0.3) {
-          idx = (Math.random() * frontier.length) | 0       // mild boundary irregularity
-        } else {
-          const cr = sumR / n, cc = sumC / n                // compact: nearest to centroid
-          let best = 0, bd = Infinity
+        const cr = sumR / n, cc = sumC / n
+        let best = 0
+        if (rng() < ch) {                                    // branch outward → arms/lobes
+          let bd = -Infinity
+          for (let i = 0; i < frontier.length; i++) {
+            const { r, c } = parse(frontier[i])
+            const d = (r - cr) ** 2 + (c - cc) ** 2
+            const jitter = 1 + (rng() - 0.5) * 2 * sin       // sinuosity → wandering arms
+            const sc = d * jitter
+            if (sc > bd) { bd = sc; best = i }
+          }
+        } else {                                             // compact → round base mass
+          let bd = Infinity
           for (let i = 0; i < frontier.length; i++) {
             const { r, c } = parse(frontier[i])
             const d = (r - cr) ** 2 + (c - cc) ** 2
             if (d < bd) { bd = d; best = i }
           }
-          idx = best
         }
-        const k = frontier.splice(idx, 1)[0]
+        const k = frontier.splice(best, 1)[0]
         cluster.add(k); pushN(k)
         const pk = parse(k); sumR += pk.r; sumC += pk.c; n++
       }
@@ -272,7 +289,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       } else {
         let remaining = target
         while (remaining > 0 && avail.size) {
-          const size = 1 + ((Math.random() * Math.min(remaining, cap)) | 0)
+          const size = 1 + ((rng() * Math.min(remaining, cap)) | 0)
           const cluster = grow(pick(avail), size, diag)
           for (const k of cluster) avail.delete(k)
           remaining -= cluster.size
@@ -322,6 +339,23 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         for (let r = minR; r <= maxR; r++)
           for (let c = minC; c <= maxC; c++) { const k = key(r, c); if (!cluster.has(k) && !outside.has(k)) cluster.add(k) }
       }
+      // Fill diagonal-only pinches (checkerboard corners) so branchy clusters
+      // outline as a single clean loop. Without this the shrink-wrap tears the
+      // cluster apart at the 1-point junctions where two arms touch only at a corner.
+      const dePinch = (cluster) => {
+        let changed = true, guard = 0
+        while (changed && guard++ < 400) {
+          changed = false
+          for (const k of [...cluster]) {
+            const { r, c } = parse(k)
+            if (cluster.has(key(r + 1, c + 1)) && !cluster.has(key(r, c + 1)) && !cluster.has(key(r + 1, c))) {
+              cluster.add(key(r, c + 1)); changed = true
+            } else if (cluster.has(key(r + 1, c - 1)) && !cluster.has(key(r, c - 1)) && !cluster.has(key(r + 1, c))) {
+              cluster.add(key(r + 1, c)); changed = true
+            }
+          }
+        }
+      }
       // Carve winding corridors (open notches) into a solid cluster to raise its
       // visual complexity. Removes cells along random inward walks while keeping the
       // solid connected and 2-manifold (no holes, no diagonal pinches) so its outline
@@ -361,27 +395,43 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         }
         return seen.size === cl.size - 1
       }
-      const carve = (cluster, budget) => {
+      // Carve winding corridors into the solid. `budget` cells removed; `sin`
+      // (0..1) biases each walk from straight (low → gentle notches) to turning
+      // often (high → tortuous, serpentine channels).
+      const carve = (cluster, budget, sin) => {
         let left = budget, guard = 0
         while (left > 0 && guard++ < budget * 30) {
           const boundary = [...cluster].filter((k) => touchesEmpty(cluster, k))
           if (!boundary.length) break
-          let cur = boundary[(Math.random() * boundary.length) | 0]
-          const walk = 3 + ((Math.random() * left) | 0)
-          let prev = null
+          let cur = boundary[(rng() * boundary.length) | 0]
+          const walk = 3 + ((rng() * left * (0.4 + 0.6 * sin)) | 0)
+          let pdir = null
           for (let s = 0; s < walk && left > 0; s++) {
             if (!cluster.has(cur) || !touchesEmpty(cluster, cur) ||
                 wouldPinch(cluster, cur) || !stillConnected(cluster, cur)) break
             cluster.delete(cur); left--
             const { r, c } = parse(cur)
-            // prefer to keep going straight (winding corridor), avoid backtracking
-            let nbs = [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]]
-              .map(([nr, nc]) => key(nr, nc)).filter((k) => cluster.has(k))
-            const fwd = nbs.filter((k) => k !== prev)
-            if (fwd.length) nbs = fwd
+            let nbs = [[-1, 0], [1, 0], [0, -1], [0, 1]]
+              .map(([dr, dc]) => ({ dr, dc, k: key(r + dr, c + dc) }))
+              .filter((o) => cluster.has(o.k))
+            if (pdir) {   // avoid immediate backtrack
+              const noBack = nbs.filter((o) => !(o.dr === -pdir[0] && o.dc === -pdir[1]))
+              if (noBack.length) nbs = noBack
+            }
             if (!nbs.length) break
-            prev = cur
-            cur = nbs[(Math.random() * nbs.length) | 0]
+            let chosen
+            if (pdir) {
+              const straight = nbs.filter((o) => o.dr === pdir[0] && o.dc === pdir[1])
+              const turn = nbs.filter((o) => !(o.dr === pdir[0] && o.dc === pdir[1]))
+              const wantTurn = rng() < sin
+              if (wantTurn && turn.length) chosen = turn[(rng() * turn.length) | 0]
+              else if (!wantTurn && straight.length) chosen = straight[0]
+              else chosen = nbs[(rng() * nbs.length) | 0]
+            } else {
+              chosen = nbs[(rng() * nbs.length) | 0]
+            }
+            pdir = [chosen.dr, chosen.dc]
+            cur = chosen.k
           }
         }
       }
@@ -415,8 +465,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       const ropes = []
       for (const cluster of makeClusters(false)) {
         fillHoles(cluster)
-        carve(cluster, Math.round(comp * cluster.size * 0.45))
+        dePinch(cluster)
+        carve(cluster, Math.round(ch * cluster.size * 0.6), sin)
         fillHoles(cluster)
+        dePinch(cluster)
         const pts = outline(cluster)
         if (pts.length >= 3) {
           const rope = { loop: [...pts, { ...pts[0] }] }

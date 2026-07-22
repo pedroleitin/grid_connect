@@ -30,10 +30,12 @@ export default function App() {
   const [drawTool, setDrawTool] = useState('points') // 'points' (polygon) | 'free' (freehand)
   const [fill, setFill] = useState(40)           // randomize coverage (0..100)
   const [rndSingle, setRndSingle] = useState(false)  // one connected element vs several
-  const [rndComplexity, setRndComplexity] = useState(50) // shape complexity (0..100)
+  const [rndChannels, setRndChannels] = useState(50)   // corridor density/amount (0..100)
+  const [rndSinuosity, setRndSinuosity] = useState(60) // corridor tortuosity (0..100)
+  const [rndSeed, setRndSeed] = useState(() => (Math.random() * 2 ** 32) >>> 0)
   const [rndOpen, setRndOpen] = useState(false)  // randomize accordion open state
-  const rndRef = useRef({ fill, single: rndSingle, complexity: rndComplexity })
-  useEffect(() => { rndRef.current = { fill, single: rndSingle, complexity: rndComplexity } }, [fill, rndSingle, rndComplexity])
+  const rndRef = useRef({ fill, single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, seed: rndSeed })
+  useEffect(() => { rndRef.current = { fill, single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, seed: rndSeed } }, [fill, rndSingle, rndChannels, rndSinuosity, rndSeed])
   const canvasApi = useRef(null)
 
   // history dock: saved drawing snapshots (persisted in localStorage)
@@ -78,7 +80,16 @@ export default function App() {
 
   const handleDeleteSnapshot = (id) => setSnapshots((s) => s.filter((x) => x.id !== id))
 
-  const handleRandomize = () => canvasApi.current?.randomize(fill, { single: rndSingle, complexity: rndComplexity })
+  // Randomize with the current seed (deterministic: tweak sliders, same layout evolves).
+  const handleRandomize = () =>
+    canvasApi.current?.randomize(fill, { single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, seed: rndSeed })
+
+  // Re-roll: pick a fresh seed and generate a new layout with it.
+  const handleReroll = () => {
+    const s = (Math.random() * 2 ** 32) >>> 0
+    setRndSeed(s)
+    canvasApi.current?.randomize(fill, { single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, seed: s })
+  }
 
   const leftInset = 330
   // reserve vertical space for the history dock so it never overlaps the grid
@@ -113,7 +124,7 @@ export default function App() {
         case 'e': setEditTool((v) => (v === 'off' ? 'sizes' : v === 'sizes' ? 'path' : 'off')); break
         case 'c': canvasApi.current?.clear(); break
         case 'r': canvasApi.current?.resetCircles(); break
-        case 'g': { const o = rndRef.current; canvasApi.current?.randomize(o.fill, { single: o.single, complexity: o.complexity }); break }
+        case 'g': { const o = rndRef.current; const s = (Math.random() * 2 ** 32) >>> 0; setRndSeed(s); canvasApi.current?.randomize(o.fill, { single: o.single, channels: o.channels, sinuosity: o.sinuosity, seed: s }); break }
         default: return
       }
     }
@@ -140,9 +151,12 @@ export default function App() {
         editTool={editTool} setEditTool={setEditTool}
         fill={fill} setFill={setFill}
         rndSingle={rndSingle} setRndSingle={setRndSingle}
-        rndComplexity={rndComplexity} setRndComplexity={setRndComplexity}
+        rndChannels={rndChannels} setRndChannels={setRndChannels}
+        rndSinuosity={rndSinuosity} setRndSinuosity={setRndSinuosity}
+        rndSeed={rndSeed}
         rndOpen={rndOpen} setRndOpen={setRndOpen}
         onRandomize={handleRandomize}
+        onReroll={handleReroll}
         onClear={() => canvasApi.current?.clear()}
         onResetCircles={() => canvasApi.current?.resetCircles()}
       />
