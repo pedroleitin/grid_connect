@@ -28,6 +28,12 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(false)
   const [mode, setMode] = useState('draw')       // 'draw' (rope) | 'paint' (blob connect)
   const [drawTool, setDrawTool] = useState('points') // 'points' (polygon) | 'free' (freehand)
+  const [fill, setFill] = useState(40)           // randomize coverage (0..100)
+  const [rndSingle, setRndSingle] = useState(false)  // one connected element vs several
+  const [rndComplexity, setRndComplexity] = useState(50) // shape complexity (0..100)
+  const [rndOpen, setRndOpen] = useState(false)  // randomize accordion open state
+  const rndRef = useRef({ fill, single: rndSingle, complexity: rndComplexity })
+  useEffect(() => { rndRef.current = { fill, single: rndSingle, complexity: rndComplexity } }, [fill, rndSingle, rndComplexity])
   const canvasApi = useRef(null)
 
   // history dock: saved drawing snapshots (persisted in localStorage)
@@ -72,6 +78,8 @@ export default function App() {
 
   const handleDeleteSnapshot = (id) => setSnapshots((s) => s.filter((x) => x.id !== id))
 
+  const handleRandomize = () => canvasApi.current?.randomize(fill, { single: rndSingle, complexity: rndComplexity })
+
   const leftInset = 330
   // reserve vertical space for the history dock so it never overlaps the grid
   const bottomInset = dockOpen ? 190 : 0
@@ -105,6 +113,7 @@ export default function App() {
         case 'e': setEditTool((v) => (v === 'off' ? 'sizes' : v === 'sizes' ? 'path' : 'off')); break
         case 'c': canvasApi.current?.clear(); break
         case 'r': canvasApi.current?.resetCircles(); break
+        case 'g': { const o = rndRef.current; canvasApi.current?.randomize(o.fill, { single: o.single, complexity: o.complexity }); break }
         default: return
       }
     }
@@ -129,6 +138,11 @@ export default function App() {
         smoothJoins={smoothJoins} setSmoothJoins={setSmoothJoins}
         hideGuides={hideGuides} setHideGuides={setHideGuides}
         editTool={editTool} setEditTool={setEditTool}
+        fill={fill} setFill={setFill}
+        rndSingle={rndSingle} setRndSingle={setRndSingle}
+        rndComplexity={rndComplexity} setRndComplexity={setRndComplexity}
+        rndOpen={rndOpen} setRndOpen={setRndOpen}
+        onRandomize={handleRandomize}
         onClear={() => canvasApi.current?.clear()}
         onResetCircles={() => canvasApi.current?.resetCircles()}
       />

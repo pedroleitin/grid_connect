@@ -235,6 +235,17 @@ canvas { display: block; cursor: crosshair; }
   transition: max-height 0.28s ease, opacity 0.28s ease;
 }
 .collapse-row--open { max-height: 520px; opacity: 1; }
+
+/* accordion header: full-width clickable row with a rotating chevron */
+.acc-head {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 12px 20px; background: transparent; border: none;
+  cursor: pointer; font-size: 14px; color: var(--c-text);
+}
+.acc-head:hover { opacity: 0.8; }
+.acc-chev { transition: transform 0.28s ease; opacity: 0.5; }
+.acc-chev--open { transform: rotate(180deg); }
+
 .tool-btn:disabled { opacity: 0.35; cursor: default; }
 .tool-btn:disabled:hover { background: var(--c-btn); }
 .tool-btn.active {

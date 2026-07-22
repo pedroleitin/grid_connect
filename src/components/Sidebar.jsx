@@ -111,6 +111,23 @@ function Segmented({ label, options, value, onChange, kbd, width }) {
   )
 }
 
+/* collapsible section with a clickable header and a chevron */
+function Accordion({ title, open, onToggle, children }) {
+  return (
+    <>
+      <button className="acc-head" onClick={onToggle} aria-expanded={open}>
+        <span>{title}</span>
+        <svg className={'acc-chev' + (open ? ' acc-chev--open' : '')} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      <div className={`collapse-row${open ? ' collapse-row--open' : ''}`}>
+        <div>{children}</div>
+      </div>
+    </>
+  )
+}
+
 export default function Sidebar({
   cols, setCols, rows, setRows, cellSize, setCellSize, gap, setGap,
   tension, setTension, mode, setMode, style, setStyle, shape, setShape,
@@ -118,6 +135,9 @@ export default function Sidebar({
   smoothJoins, setSmoothJoins,
   hideGuides, setHideGuides,
   editTool, setEditTool,
+  fill, setFill,
+  rndSingle, setRndSingle, rndComplexity, setRndComplexity,
+  rndOpen, setRndOpen, onRandomize,
   onClear, onResetCircles,
 }) {
   return (
@@ -178,6 +198,15 @@ export default function Sidebar({
             : [{ value: 'off', label: 'Off' }, { value: 'sizes', label: 'Sizes' }]}
         />
         <Checkbox label="Hide guides" checked={hideGuides} onChange={setHideGuides} kbd="h" />
+
+        <Accordion title="Randomize" open={rndOpen} onToggle={() => setRndOpen((v) => !v)}>
+          <Slider label="Fill" min={5} max={100} value={fill} suffix="%" onChange={setFill} />
+          <Slider label="Complexity" min={0} max={100} value={rndComplexity} suffix="%" onChange={setRndComplexity} />
+          <Checkbox label="Single shape" checked={rndSingle} onChange={setRndSingle} />
+          <div className="px-5 pt-1 pb-3">
+            <button className="tool-btn w-full" onClick={onRandomize}>Randomize<Kbd k="g" /></button>
+          </div>
+        </Accordion>
 
         <p className="px-5 py-3 mt-auto text-[11px] leading-relaxed" style={{ color: 'var(--c-text)', opacity: 0.5 }}>
           Draw a loop anywhere on the canvas around the circles you want to wrap — an elastic

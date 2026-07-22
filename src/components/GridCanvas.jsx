@@ -194,6 +194,182 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     for (const rope of ropesRef.current) reseedRope(rope, cfg)
   }
 
+  // Build a random drawing across the pins. `fill` (0..100) controls how much of
+  // the grid is covered. `opts.single` makes it one connected element (fill drives
+  // its size) instead of several; `opts.complexity` (0..100) tunes each shape from
+  // compact/round (low) to irregular/branchy (high). In Draw mode each cluster of
+  // cells becomes a shrink-wrap rope; in Paint mode clusters become connected
+  // node/edge blobs. Replaces the current drawing.
+  const randomize = (fill, opts = {}) => {
+    const { single = false, complexity = 50 } = opts
+    const cfg = cfgRef.current
+    const rows = cfg.rows, cols = cfg.cols
+    const ig = ignoredRef.current
+    const cells = []
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        if (!ig.has(r + ',' + c)) cells.push(r + ',' + c)
+    if (!cells.length) return
+
+    const f = Math.max(0, Math.min(1, (fill || 0) / 100))
+    const total = cells.length
+    const target = Math.max(1, Math.round(f * total))
+    // cap a single element to a fraction of the grid so high fill yields several
+    const cap = Math.max(1, Math.round(total * 0.35))
+    const comp = Math.max(0, Math.min(1, (complexity || 0) / 100))
+
+    const avail = new Set(cells)
+    const key = (r, c) => r + ',' + c
+    const parse = (k) => { const i = k.indexOf(','); return { r: +k.slice(0, i), c: +k.slice(i + 1) } }
+    const pick = (set) => { const a = [...set]; return a[(Math.random() * a.length) | 0] }
+
+    // grow a contiguous cluster from a seed up to `size` cells. Complexity biases
+    // the growth: low = compact (frontier cell nearest the centroid → round blobs),
+    // high = branchy (random frontier cell → irregular tendrils).
+    const grow = (seed, size, diag) => {
+      const cluster = new Set([seed])
+      const frontier = []
+      const pushN = (k) => {
+        const { r, c } = parse(k)
+        const nb = diag
+          ? [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1], [r - 1, c - 1], [r - 1, c + 1], [r + 1, c - 1], [r + 1, c + 1]]
+          : [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]]
+        for (const [nr, nc] of nb) {
+          const nk = key(nr, nc)
+          if (avail.has(nk) && !cluster.has(nk) && !frontier.includes(nk)) frontier.push(nk)
+        }
+      }
+      pushN(seed)
+      const s = parse(seed); let sumR = s.r, sumC = s.c, n = 1
+      while (cluster.size < size && frontier.length) {
+        let idx
+        if (Math.random() < comp) {
+          idx = (Math.random() * frontier.length) | 0       // branchy: any frontier cell
+        } else {
+          const cr = sumR / n, cc = sumC / n                // compact: nearest to centroid
+          let best = 0, bd = Infinity
+          for (let i = 0; i < frontier.length; i++) {
+            const { r, c } = parse(frontier[i])
+            const d = (r - cr) ** 2 + (c - cc) ** 2
+            if (d < bd) { bd = d; best = i }
+          }
+          idx = best
+        }
+        const k = frontier.splice(idx, 1)[0]
+        cluster.add(k); pushN(k)
+        const pk = parse(k); sumR += pk.r; sumC += pk.c; n++
+      }
+      return cluster
+    }
+
+    // partition the target coverage into one (single) or several contiguous clusters
+    const makeClusters = (diag) => {
+      const list = []
+      if (single) {
+        const cluster = grow(pick(avail), Math.min(target, total), diag)
+        for (const k of cluster) avail.delete(k)
+        list.push(cluster)
+      } else {
+        let remaining = target
+        while (remaining > 0 && avail.size) {
+          const size = 1 + ((Math.random() * Math.min(remaining, cap)) | 0)
+          const cluster = grow(pick(avail), size, diag)
+          for (const k of cluster) avail.delete(k)
+          remaining -= cluster.size
+          list.push(cluster)
+        }
+      }
+      return list
+    }
+
+    if (modeRef.current === 'paint') {
+      const nodes = new Set(), edges = new Set()
+      for (const cluster of makeClusters(true)) {   // 8-connected
+        for (const k of cluster) nodes.add(k)
+        // connect the cluster into one component (spanning tree over 8-adjacency)
+        const conn = new Set(), rest = new Set(cluster)
+        conn.add([...rest][0]); rest.delete([...conn][0])
+        while (rest.size) {
+          let linked = false
+          for (const rk of rest) {
+            const ra = parse(rk)
+            for (const ck of conn) {
+              if (adjacentCells(ra, parse(ck))) { edges.add(edgeKey(ra, parse(ck))); conn.add(rk); rest.delete(rk); linked = true; break }
+            }
+            if (linked) break
+          }
+          if (!linked) { for (const rk of rest) conn.add(rk); rest.clear() }
+        }
+      }
+      paintNodesRef.current = nodes
+      paintEdgesRef.current = edges
+      ropesRef.current = []
+    } else {
+      // fill any enclosed empty cells so a cluster outlines as one solid shape
+      const fillHoles = (cluster) => {
+        let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity
+        for (const k of cluster) { const { r, c } = parse(k); if (r < minR) minR = r; if (r > maxR) maxR = r; if (c < minC) minC = c; if (c > maxC) maxC = c }
+        const within = (r, c) => r >= minR - 1 && r <= maxR + 1 && c >= minC - 1 && c <= maxC + 1
+        const outside = new Set(), stack = [key(minR - 1, minC - 1)]
+        outside.add(stack[0])
+        while (stack.length) {
+          const { r, c } = parse(stack.pop())
+          for (const [nr, nc] of [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]]) {
+            const nk = key(nr, nc)
+            if (within(nr, nc) && !outside.has(nk) && !cluster.has(nk)) { outside.add(nk); stack.push(nk) }
+          }
+        }
+        for (let r = minR; r <= maxR; r++)
+          for (let c = minC; c <= maxC; c++) { const k = key(r, c); if (!cluster.has(k) && !outside.has(k)) cluster.add(k) }
+      }
+      // rectilinear outline of the cell union, as a closed loop of grid-coord points
+      const outline = (cluster) => {
+        const has = (r, c) => cluster.has(key(r, c))
+        const edges = new Map()
+        for (const k of cluster) {
+          const { r, c } = parse(k)
+          const TL = [c - 0.5, r - 0.5], TR = [c + 0.5, r - 0.5], BR = [c + 0.5, r + 0.5], BL = [c - 0.5, r + 0.5]
+          if (!has(r - 1, c)) edges.set(TL.join(','), TR)
+          if (!has(r, c + 1)) edges.set(TR.join(','), BR)
+          if (!has(r + 1, c)) edges.set(BR.join(','), BL)
+          if (!has(r, c - 1)) edges.set(BL.join(','), TL)
+        }
+        if (!edges.size) return []
+        const startK = edges.keys().next().value
+        const pts = []
+        let curK = startK, guard = 0
+        do {
+          const [gx, gy] = curK.split(',').map(Number)
+          pts.push({ gx, gy })
+          const nxt = edges.get(curK)
+          if (!nxt) break
+          curK = nxt.join(',')
+        } while (curK !== startK && ++guard < 1e5)
+        return pts
+      }
+
+      const ropes = []
+      for (const cluster of makeClusters(false)) {
+        fillHoles(cluster)
+        const pts = outline(cluster)
+        if (pts.length >= 3) {
+          const rope = { loop: [...pts, { ...pts[0] }] }
+          reseedRope(rope, cfg)
+          if (rope.joints && rope.joints.length >= 2) ropes.push(rope)
+        }
+      }
+      ropesRef.current = ropes
+      paintNodesRef.current.clear(); paintEdgesRef.current.clear()
+    }
+
+    histRef.current = []; redoRef.current = []
+    curRef.current = null; polyRef.current = null; polyCursorRef.current = null
+    editRopeRef.current = null; editDragRef.current = null
+    paintDragRef.current = null; paintSelRef.current = null; paintHoverRef.current = null
+    hoverAnimRef.current.clear(); paintAnimRef.current.clear()
+    wake(); refreshHist()
+  }
+
   // sync config; re-seed on geometry change; keep the content centered
   useEffect(() => {
     editModeRef.current = editMode
@@ -1137,6 +1313,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     },
     undo: doUndo,
     redo: doRedo,
+    randomize,
     // serializable drawing state + an SVG preview data-URI for the history dock
     snapshot() {
       const cfg = cfgRef.current
