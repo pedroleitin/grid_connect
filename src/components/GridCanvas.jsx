@@ -243,8 +243,8 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       const s = parse(seed); let sumR = s.r, sumC = s.c, n = 1
       while (cluster.size < size && frontier.length) {
         let idx
-        if (Math.random() < comp) {
-          idx = (Math.random() * frontier.length) | 0       // branchy: any frontier cell
+        if (Math.random() < comp * 0.3) {
+          idx = (Math.random() * frontier.length) | 0       // mild boundary irregularity
         } else {
           const cr = sumR / n, cc = sumC / n                // compact: nearest to centroid
           let best = 0, bd = Infinity
@@ -322,6 +322,70 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         for (let r = minR; r <= maxR; r++)
           for (let c = minC; c <= maxC; c++) { const k = key(r, c); if (!cluster.has(k) && !outside.has(k)) cluster.add(k) }
       }
+      // Carve winding corridors (open notches) into a solid cluster to raise its
+      // visual complexity. Removes cells along random inward walks while keeping the
+      // solid connected and 2-manifold (no holes, no diagonal pinches) so its outline
+      // stays a single loop. `budget` cells are removed at most.
+      const solid = (cl, r, c) => cl.has(key(r, c))
+      // a removed cell must not leave a diagonal-only touch at any of its 4 corners
+      const wouldPinch = (cl, cell) => {
+        const { r, c } = parse(cell)
+        const at = (rr, cc) => (rr === r && cc === c ? false : solid(cl, rr, cc)) // cell treated as empty
+        const blocks = [
+          [[r - 1, c - 1], [r - 1, c], [r, c - 1], [r, c]],   // TL vertex
+          [[r - 1, c], [r - 1, c + 1], [r, c], [r, c + 1]],   // TR vertex
+          [[r, c - 1], [r, c], [r + 1, c - 1], [r + 1, c]],   // BL vertex
+          [[r, c], [r, c + 1], [r + 1, c], [r + 1, c + 1]],   // BR vertex
+        ]
+        for (const [tl, tr, bl, br] of blocks) {
+          const a = at(...tl), b = at(...tr), d = at(...bl), e = at(...br)
+          if ((a && e && !b && !d) || (b && d && !a && !e)) return true
+        }
+        return false
+      }
+      const touchesEmpty = (cl, cell) => {
+        const { r, c } = parse(cell)
+        return !solid(cl, r - 1, c) || !solid(cl, r + 1, c) || !solid(cl, r, c - 1) || !solid(cl, r, c + 1)
+      }
+      const stillConnected = (cl, cell) => {
+        if (cl.size <= 1) return false
+        const start = cl.has(cell) ? [...cl].find((k) => k !== cell) : [...cl][0]
+        if (start === undefined) return false
+        const seen = new Set([start]), stack = [start]
+        while (stack.length) {
+          const { r, c } = parse(stack.pop())
+          for (const [nr, nc] of [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]]) {
+            const nk = key(nr, nc)
+            if (nk !== cell && cl.has(nk) && !seen.has(nk)) { seen.add(nk); stack.push(nk) }
+          }
+        }
+        return seen.size === cl.size - 1
+      }
+      const carve = (cluster, budget) => {
+        let left = budget, guard = 0
+        while (left > 0 && guard++ < budget * 30) {
+          const boundary = [...cluster].filter((k) => touchesEmpty(cluster, k))
+          if (!boundary.length) break
+          let cur = boundary[(Math.random() * boundary.length) | 0]
+          const walk = 3 + ((Math.random() * left) | 0)
+          let prev = null
+          for (let s = 0; s < walk && left > 0; s++) {
+            if (!cluster.has(cur) || !touchesEmpty(cluster, cur) ||
+                wouldPinch(cluster, cur) || !stillConnected(cluster, cur)) break
+            cluster.delete(cur); left--
+            const { r, c } = parse(cur)
+            // prefer to keep going straight (winding corridor), avoid backtracking
+            let nbs = [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]]
+              .map(([nr, nc]) => key(nr, nc)).filter((k) => cluster.has(k))
+            const fwd = nbs.filter((k) => k !== prev)
+            if (fwd.length) nbs = fwd
+            if (!nbs.length) break
+            prev = cur
+            cur = nbs[(Math.random() * nbs.length) | 0]
+          }
+        }
+      }
+
       // rectilinear outline of the cell union, as a closed loop of grid-coord points
       const outline = (cluster) => {
         const has = (r, c) => cluster.has(key(r, c))
@@ -350,6 +414,8 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
 
       const ropes = []
       for (const cluster of makeClusters(false)) {
+        fillHoles(cluster)
+        carve(cluster, Math.round(comp * cluster.size * 0.45))
         fillHoles(cluster)
         const pts = outline(cluster)
         if (pts.length >= 3) {
