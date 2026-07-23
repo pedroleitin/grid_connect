@@ -138,6 +138,7 @@ export default function Sidebar({
   fill, setFill,
   rndSingle, setRndSingle, rndChannels, setRndChannels,
   rndSinuosity, setRndSinuosity, rndSeed,
+  rndSym, setRndSym,
   rndOpen, setRndOpen, onReroll,
   onClear, onResetCircles,
 }) {
@@ -204,6 +205,10 @@ export default function Sidebar({
           <Slider label="Fill" min={5} max={100} value={fill} suffix="%" onChange={setFill} />
           <Slider label="Channels" min={0} max={100} value={rndChannels} suffix="%" onChange={setRndChannels} />
           <Slider label="Sinuosity" min={0} max={100} value={rndSinuosity} suffix="%" onChange={setRndSinuosity} />
+          <Segmented
+            label="Symmetry" value={rndSym} onChange={setRndSym} width={210}
+            options={[{ value: 'off', label: 'Off' }, { value: 'h', label: 'H' }, { value: 'v', label: 'V' }, { value: 'radial', label: 'Radial' }]}
+          />
           <Checkbox label="Single shape" checked={rndSingle} onChange={setRndSingle} />
           <div className="px-5 pt-1 pb-3">
             <button className="tool-btn w-full" onClick={onReroll} title={`Seed ${rndSeed}`}>Randomize<Kbd k="g" /></button>

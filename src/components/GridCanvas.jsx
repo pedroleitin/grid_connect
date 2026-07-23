@@ -201,7 +201,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   // cells becomes a shrink-wrap rope; in Paint mode clusters become connected
   // node/edge blobs. Replaces the current drawing.
   const randomize = (fill, opts = {}) => {
-    const { single = false, channels = 50, sinuosity = 50 } = opts
+    const { single = false, channels = 50, sinuosity = 50, sym = 'off' } = opts
     const seed = (opts.seed == null ? (Math.random() * 2 ** 32) : opts.seed) >>> 0
     // seeded PRNG (mulberry32) so a given seed reproduces the same drawing
     const rng = ((a) => () => {
@@ -299,6 +299,31 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       return list
     }
 
+    // Symmetry: reflect a cell across the grid's center axes (H mirrors columns,
+    // V mirrors rows, Radial does both + the 180° rotation → 4-fold). Reflected
+    // cells that fall off-grid or on an ignored pin are dropped. Used to make the
+    // generated shapes symmetric before they're outlined/connected.
+    const reflectorsFor = (m) => {
+      if (m === 'off') return []
+      const fs = []
+      if (m === 'h' || m === 'radial') fs.push(([r, c]) => [r, cols - 1 - c])
+      if (m === 'v' || m === 'radial') fs.push(([r, c]) => [rows - 1 - r, c])
+      if (m === 'radial') fs.push(([r, c]) => [rows - 1 - r, cols - 1 - c])
+      return fs
+    }
+    const reflectors = reflectorsFor(sym)
+    const mapCell = (k, f) => {
+      const { r, c } = parse(k)
+      const [nr, nc] = f([r, c])
+      return (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !ig.has(key(nr, nc))) ? key(nr, nc) : null
+    }
+    // reflect a whole cluster's cells by a mirror map (dropping off-grid/ignored),
+    // returning a new Set — used to emit a mirrored copy as its own shape
+    const reflectCluster = (cluster, f) => {
+      const out = new Set()
+      for (const k of cluster) { const nk = mapCell(k, f); if (nk) out.add(nk) }
+      return out
+    }
     if (modeRef.current === 'paint') {
       const nodes = new Set(), edges = new Set()
       for (const cluster of makeClusters(true)) {   // 8-connected
@@ -316,6 +341,15 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             if (linked) break
           }
           if (!linked) { for (const rk of rest) conn.add(rk); rest.clear() }
+        }
+      }
+      // mirror the whole node/edge graph so painted shapes are symmetric too
+      for (const f of reflectors) {
+        for (const k of [...nodes]) { const nk = mapCell(k, f); if (nk) nodes.add(nk) }
+        for (const e of [...edges]) {
+          const [ka, kb] = e.split('|')
+          const na = mapCell(ka, f), nb = mapCell(kb, f)
+          if (na && nb && na !== nb) edges.add(edgeKey(parse(na), parse(nb)))
         }
       }
       paintNodesRef.current = nodes
@@ -463,17 +497,28 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       }
 
       const ropes = []
-      for (const cluster of makeClusters(false)) {
-        fillHoles(cluster)
-        dePinch(cluster)
-        carve(cluster, Math.round(ch * cluster.size * 0.6), sin)
-        fillHoles(cluster)
-        dePinch(cluster)
+      const emit = (cluster) => {
         const pts = outline(cluster)
         if (pts.length >= 3) {
           const rope = { loop: [...pts, { ...pts[0] }] }
           reseedRope(rope, cfg)
           if (rope.joints && rope.joints.length >= 2) ropes.push(rope)
+        }
+      }
+      for (const raw of makeClusters(false)) {
+        fillHoles(raw)
+        dePinch(raw)
+        carve(raw, Math.round(ch * raw.size * 0.6), sin)
+        fillHoles(raw)
+        dePinch(raw)
+        emit(raw)
+        // mirror each reflection as its own rope (carve happens pre-mirror, so
+        // both halves are identical); a separate rope avoids the single-outline
+        // walk dropping a disconnected mirror half
+        for (const f of reflectors) {
+          const m = reflectCluster(raw, f)
+          dePinch(m)
+          if (m.size >= 1) emit(m)
         }
       }
       ropesRef.current = ropes

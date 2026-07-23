@@ -10,6 +10,9 @@
 - [x] **Squares** mode: with **Pin → Square**, the rope collides with a rounded-square pole
   (flat edges, softly rounded corners matching the guide), so the wrap follows the square shape.
   A **Corner radius** slider (20–100%) controls the rounding of both guides and the rope contour.
+- [x] **Randomize — Symmetry** (Off / H / V / Radial): mirror the generated shapes across the grid's
+  center axes; each reflection is its own shape and mirroring happens after carving so halves match.
+  Works in Draw and Paint, refines live.
 - [ ] **Erase** tool: remove drawn ropes (or parts of them) directly on the canvas.
 - [ ] **Select line tool** (Line → Select): a third Line option (alongside Points/Freehand) that
   builds a shape by clicking pins directly — each clicked pin is added to the selection and the
