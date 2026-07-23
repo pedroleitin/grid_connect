@@ -180,10 +180,14 @@ export default function Sidebar({
             />
           </div>
         </div>
-        <Segmented
-          label="Style" value={style} onChange={setStyle} kbd="s"
-          options={[{ value: 'fill', label: 'Filled' }, { value: 'stroke', label: 'Outline' }]}
-        />
+        <div className={`collapse-row${mode === 'draw' ? ' collapse-row--open' : ''}`}>
+          <div>
+            <Segmented
+              label="Style" value={style} onChange={setStyle} kbd="s"
+              options={[{ value: 'fill', label: 'Filled' }, { value: 'stroke', label: 'Outline' }]}
+            />
+          </div>
+        </div>
         <Segmented
           label="Pin" value={shape} onChange={setShape} kbd="p"
           options={[{ value: 'circle', label: 'Circle' }, { value: 'square', label: 'Square' }]}

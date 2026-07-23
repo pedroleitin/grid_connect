@@ -5,6 +5,8 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Changed
+- **Style is hidden in Paint mode** (it only affects Draw ropes; Paint blobs are always filled), the
+  same way **Line** already collapses outside Draw.
 - **Symmetry is now a global Draw control** (moved out of the Randomize accordion). It mirrors any
   drawing live — freehand/polygon shapes and randomized ones alike — and **re-mirrors what's already
   on screen** when you change it: mirror copies are rebuilt whenever you draw, edit, undo/redo, or
