@@ -22,6 +22,14 @@ All notable changes to this project. Newest first.
   **Path** edit mode is active so the pins under them stay visible.
 
 ### Added
+- **Randomize — richer multi-shape distribution**: when generating several separate shapes, seeds are
+  now placed with best-candidate ("blue-noise") sampling so the shapes spread across the grid instead
+  of clumping, and their sizes follow a **hero + satellites** mixture — one large focal cluster plus
+  several smaller ones — for a more composed layout.
+- **Randomize — richer Paint graphs**: painted connections are no longer a bare spanning tree.
+  **Channels** now adds cycles/loops (a fraction of the remaining adjacent pairs become extra edges),
+  and **Sinuosity** shapes the topology from compact **hubs** (star-like, high-degree nodes) at low
+  values to long **serpentine chains** at high values.
 - **Symmetry**: a **Symmetry** control (Off / H / V / Radial) mirrors shapes across the grid's center
   axes — **H** left↔right, **V** top↔bottom, **Radial** both (4-fold).
   Each reflection is emitted as its own shape (so a mirror half is never dropped when it's detached

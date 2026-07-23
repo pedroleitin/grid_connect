@@ -324,10 +324,36 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         for (const k of cluster) avail.delete(k)
         list.push(cluster)
       } else {
-        let remaining = target
+        // best-candidate ("blue-noise") seeding: sample a few free cells and keep the
+        // one farthest from the seeds already placed, so separate shapes spread apart
+        // instead of clumping. Size mixture: the first cluster is a large "hero", the
+        // rest are smaller "satellites".
+        const seeds = []
+        const pickSpread = () => {
+          const arr = [...avail]
+          if (!arr.length) return null
+          if (!seeds.length) return arr[(rng() * arr.length) | 0]
+          const samples = Math.min(arr.length, 8)
+          let best = null, bestD = -Infinity
+          for (let i = 0; i < samples; i++) {
+            const cand = arr[(rng() * arr.length) | 0]
+            const { r, c } = parse(cand)
+            let md = Infinity
+            for (const s of seeds) { const p = parse(s); const d = (r - p.r) ** 2 + (c - p.c) ** 2; if (d < md) md = d }
+            if (md > bestD) { bestD = md; best = cand }
+          }
+          return best
+        }
+        let remaining = target, hero = true
         while (remaining > 0 && avail.size) {
-          const size = 1 + ((rng() * Math.min(remaining, cap)) | 0)
-          const cluster = grow(pick(avail), size, diag)
+          const s = pickSpread()
+          if (s == null) break
+          seeds.push(s)
+          const size = hero
+            ? Math.max(1, Math.min(remaining, Math.round(cap * (0.7 + 0.3 * rng()))))   // hero
+            : 1 + ((rng() * Math.max(1, Math.min(remaining, cap) * 0.4)) | 0)            // satellite
+          hero = false
+          const cluster = grow(s, size, diag)
           for (const k of cluster) avail.delete(k)
           remaining -= cluster.size
           list.push(cluster)
@@ -357,23 +383,39 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     }
     if (modeRef.current === 'paint') {
       const nodes = new Set(), edges = new Set()
-      for (const cluster of makeClusters(true)) {   // 8-connected
-        for (const k of cluster) nodes.add(k)
-        // connect the cluster into one component (spanning tree over 8-adjacency)
-        const conn = new Set(), rest = new Set(cluster)
-        conn.add([...rest][0]); rest.delete([...conn][0])
-        while (rest.size) {
-          let linked = false
-          for (const rk of rest) {
-            const ra = parse(rk)
-            for (const ck of conn) {
-              if (adjacentCells(ra, parse(ck))) { edges.add(edgeKey(ra, parse(ck))); conn.add(rk); rest.delete(rk); linked = true; break }
+      // Build a rich connection graph over a contiguous cluster (8-adjacency):
+      // a spanning tree grown DFS-style (serpentine chains) when sinuosity is high or
+      // BFS-style (compact hubs) when low, then a fraction (channels) of the remaining
+      // adjacent pairs added as extra edges to form cycles/loops.
+      const buildGraph = (cluster) => {
+        const arr = [...cluster]
+        for (const k of arr) nodes.add(k)
+        if (arr.length <= 1) return
+        const adj = new Map(arr.map((k) => [k, []]))
+        const pairs = []
+        for (let i = 0; i < arr.length; i++)
+          for (let j = i + 1; j < arr.length; j++)
+            if (adjacentCells(parse(arr[i]), parse(arr[j]))) {
+              adj.get(arr[i]).push(arr[j]); adj.get(arr[j]).push(arr[i]); pairs.push([arr[i], arr[j]])
             }
-            if (linked) break
-          }
-          if (!linked) { for (const rk of rest) conn.add(rk); rest.clear() }
+        const tree = new Set(), inTree = new Set([arr[0]]), stack = [arr[0]]
+        while (inTree.size < arr.length && stack.length) {
+          const idx = rng() < sin ? stack.length - 1 : 0   // DFS (chain) vs BFS (hub)
+          const cur = stack[idx]
+          const free = adj.get(cur).filter((n) => !inTree.has(n))
+          if (!free.length) { stack.splice(idx, 1); continue }
+          const nxt = free[(rng() * free.length) | 0]
+          inTree.add(nxt); tree.add(edgeKey(parse(cur), parse(nxt))); stack.push(nxt)
         }
+        for (const e of tree) edges.add(e)
+        const extra = pairs
+          .map(([a, b]) => edgeKey(parse(a), parse(b)))
+          .filter((e) => !tree.has(e))
+        for (let i = extra.length - 1; i > 0; i--) { const j = (rng() * (i + 1)) | 0;[extra[i], extra[j]] = [extra[j], extra[i]] }
+        const nAdd = Math.round(extra.length * ch)   // channels → cycle density
+        for (let i = 0; i < nAdd; i++) edges.add(extra[i])
       }
+      for (const cluster of makeClusters(true)) buildGraph(cluster)   // 8-connected
       // mirror the whole node/edge graph so painted shapes are symmetric too
       for (const f of reflectors) {
         for (const k of [...nodes]) { const nk = mapCell(k, f); if (nk) nodes.add(nk) }
