@@ -200,6 +200,7 @@ export default function App() {
           cornerRadius={cornerRadius} mode={editTool === 'path' ? 'edit' : mode} blob={blob}
           drawTool={drawTool} smoothJoins={smoothJoins}
           hideGuides={hideGuides} editMode={editTool === 'sizes'} theme={darkMode ? 'dark' : 'light'}
+          symmetry={rndSym}
           leftInset={leftInset} bottomInset={bottomInset}
         />
       </main>

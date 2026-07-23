@@ -5,6 +5,10 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Changed
+- **Symmetry is now a global Draw control** (moved out of the Randomize accordion). It mirrors any
+  drawing live — freehand/polygon shapes and randomized ones alike — and **re-mirrors what's already
+  on screen** when you change it: mirror copies are rebuilt whenever you draw, edit, undo/redo, or
+  change the grid. Switching it back to **Off** removes the mirrors and leaves the original.
 - **Smooth joins** (Paint mode) now defaults to **off**.
 - **Edit → Path** now only appears in **Draw** mode (Path reshapes ropes, which only exist in Draw);
   in Paint mode the **Edit** segmented shows just **Off / Sizes**. Switching to Paint while Path is
@@ -18,11 +22,11 @@ All notable changes to this project. Newest first.
   **Path** edit mode is active so the pins under them stay visible.
 
 ### Added
-- **Randomize — Symmetry**: a new **Symmetry** control (Off / H / V / Radial) mirrors the generated
-  shapes across the grid's center axes — **H** left↔right, **V** top↔bottom, **Radial** both (4-fold).
+- **Symmetry**: a **Symmetry** control (Off / H / V / Radial) mirrors shapes across the grid's center
+  axes — **H** left↔right, **V** top↔bottom, **Radial** both (4-fold).
   Each reflection is emitted as its own shape (so a mirror half is never dropped when it's detached
   from the original), and mirroring happens after carving so both halves match exactly. Works in both
-  Draw (shrink-wrap ropes) and Paint (metaball graph), and refines live like the other controls.
+  Draw (shrink-wrap ropes) and Paint (metaball graph).
 - **Randomize — Channels / Sinuosity + live refine**: the single **Complexity** slider is split into
   two — **Channels** (how branchy/lobed the generated shapes are: low = compact round blobs, high =
   organic multi-lobed forms) and **Sinuosity** (how much those arms wander/wind). Generation is

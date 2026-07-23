@@ -199,16 +199,16 @@ export default function Sidebar({
             ? [{ value: 'off', label: 'Off' }, { value: 'sizes', label: 'Sizes' }, { value: 'path', label: 'Path' }]
             : [{ value: 'off', label: 'Off' }, { value: 'sizes', label: 'Sizes' }]}
         />
+        <Segmented
+          label="Symmetry" value={rndSym} onChange={setRndSym} width={210}
+          options={[{ value: 'off', label: 'Off' }, { value: 'h', label: 'H' }, { value: 'v', label: 'V' }, { value: 'radial', label: 'Radial' }]}
+        />
         <Checkbox label="Hide guides" checked={hideGuides} onChange={setHideGuides} kbd="h" />
 
         <Accordion title="Randomize" open={rndOpen} onToggle={() => setRndOpen((v) => !v)}>
           <Slider label="Fill" min={5} max={100} value={fill} suffix="%" onChange={setFill} />
           <Slider label="Channels" min={0} max={100} value={rndChannels} suffix="%" onChange={setRndChannels} />
           <Slider label="Sinuosity" min={0} max={100} value={rndSinuosity} suffix="%" onChange={setRndSinuosity} />
-          <Segmented
-            label="Symmetry" value={rndSym} onChange={setRndSym} width={210}
-            options={[{ value: 'off', label: 'Off' }, { value: 'h', label: 'H' }, { value: 'v', label: 'V' }, { value: 'radial', label: 'Radial' }]}
-          />
           <Checkbox label="Single shape" checked={rndSingle} onChange={setRndSingle} />
           <div className="px-5 pt-1 pb-3">
             <button className="tool-btn w-full" onClick={onReroll} title={`Seed ${rndSeed}`}>Randomize<Kbd k="g" /></button>

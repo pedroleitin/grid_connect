@@ -90,7 +90,7 @@ const easeInOut = (t) => t * t * (3 - 2 * t)
 // ease-out cubic: fast start, gentle deceleration (used for the dock zoom)
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3)
 
-const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, smoothJoins, hideGuides, editMode, theme, leftInset = 0, bottomInset = 0 }, ref) {
+const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, smoothJoins, hideGuides, editMode, symmetry = 'off', theme, leftInset = 0, bottomInset = 0 }, ref) {
   const holderRef = useRef(null)   // p5 host container (pans/zooms)
   const bgRef = useRef(null)       // full-page dotted background (single seamless layer)
   const insetRef = useRef(leftInset) // left area hidden by the sidebar (for centering)
@@ -119,6 +119,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const lastSizeRef = useRef(cellSize)
   const lastColsRef = useRef(cols)
   const lastRowsRef = useRef(rows)
+  const lastSymRef = useRef(symmetry)
   const colRef = useRef({})
   const guideRef = useRef(1)  // animated pin opacity: eases to 0 when guides hidden
   const editModeRef = useRef(editMode)   // mirror for the p5 loop
@@ -173,6 +174,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     if (!act) return
     applyAction(act, false)
     redoRef.current.push(act)
+    rebuildMirrors(cfgRef.current)
     wake(); refreshHist()
   }
   const doRedo = () => {
@@ -180,6 +182,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     if (!act) return
     applyAction(act, true)
     histRef.current.push(act)
+    rebuildMirrors(cfgRef.current)
     wake(); refreshHist()
   }
 
@@ -192,6 +195,39 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
 
   const reseed = (cfg) => {
     for (const rope of ropesRef.current) reseedRope(rope, cfg)
+  }
+
+  // Reflectors in loop (grid-index) space: gx maps to a column, gy to a row, so a
+  // mirror is just index c -> (cols-1)-c / r -> (rows-1)-r. H mirrors left↔right,
+  // V top↔bottom, Radial both (4-fold).
+  const loopReflectors = (sym, cols, rows) => {
+    if (!sym || sym === 'off') return []
+    const fs = []
+    if (sym === 'h' || sym === 'radial') fs.push((g) => ({ gx: (cols - 1) - g.gx, gy: g.gy }))
+    if (sym === 'v' || sym === 'radial') fs.push((g) => ({ gx: g.gx, gy: (rows - 1) - g.gy }))
+    if (sym === 'radial') fs.push((g) => ({ gx: (cols - 1) - g.gx, gy: (rows - 1) - g.gy }))
+    return fs
+  }
+
+  // Symmetry as a live derived layer: the user's drawn/randomized ropes are the
+  // base (no `derived` flag); this drops the previous mirror copies and rebuilds
+  // them from the base set for the current symmetry mode. Called whenever the base
+  // set or the symmetry/grid changes, so toggling symmetry re-mirrors what's on
+  // screen. Mirror ropes are real ropes (they shrink-wrap their own pins).
+  const rebuildMirrors = (cfg) => {
+    ropesRef.current = ropesRef.current.filter((r) => !r.derived)
+    const fs = loopReflectors(cfg.sym, cfg.cols, cfg.rows)
+    if (!fs.length) { wake(); return }
+    const base = ropesRef.current.slice()
+    for (const rope of base) {
+      if (!rope.loop) continue
+      for (const f of fs) {
+        const m = { loop: rope.loop.map((g) => f(g)), derived: true }
+        reseedRope(m, cfg)
+        if (m.joints && m.joints.length >= 2) ropesRef.current.push(m)
+      }
+    }
+    wake()
   }
 
   // Build a random drawing across the pins. `fill` (0..100) controls how much of
@@ -211,6 +247,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296
     })(seed)
     const cfg = cfgRef.current
+    cfg.sym = sym
     const rows = cfg.rows, cols = cfg.cols
     const ig = ignoredRef.current
     const cells = []
@@ -312,17 +349,11 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       return fs
     }
     const reflectors = reflectorsFor(sym)
+    // reflect a single cell key by a mirror map (dropping off-grid/ignored), or null
     const mapCell = (k, f) => {
       const { r, c } = parse(k)
       const [nr, nc] = f([r, c])
       return (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !ig.has(key(nr, nc))) ? key(nr, nc) : null
-    }
-    // reflect a whole cluster's cells by a mirror map (dropping off-grid/ignored),
-    // returning a new Set — used to emit a mirrored copy as its own shape
-    const reflectCluster = (cluster, f) => {
-      const out = new Set()
-      for (const k of cluster) { const nk = mapCell(k, f); if (nk) out.add(nk) }
-      return out
     }
     if (modeRef.current === 'paint') {
       const nodes = new Set(), edges = new Set()
@@ -512,18 +543,14 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         fillHoles(raw)
         dePinch(raw)
         emit(raw)
-        // mirror each reflection as its own rope (carve happens pre-mirror, so
-        // both halves are identical); a separate rope avoids the single-outline
-        // walk dropping a disconnected mirror half
-        for (const f of reflectors) {
-          const m = reflectCluster(raw, f)
-          dePinch(m)
-          if (m.size >= 1) emit(m)
-        }
       }
       ropesRef.current = ropes
       paintNodesRef.current.clear(); paintEdgesRef.current.clear()
     }
+
+    // mirror the freshly built base ropes (Draw) for the current symmetry mode;
+    // paint bakes its own symmetry above, so this is a no-op there (no ropes)
+    rebuildMirrors(cfg)
 
     histRef.current = []; redoRef.current = []
     curRef.current = null; polyRef.current = null; polyCursorRef.current = null
@@ -548,12 +575,15 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       styleAnimRef.current = { from: styleCurRef.current, t: 0 }
       styleCurRef.current = style
     }
-    cfgRef.current = { cols, rows, cellSize, gap, shape, tension, style, cornerRadius, blob, smoothJoins, hideGuides, sizes: sizesRef.current, ignored: ignoredRef.current }
+    cfgRef.current = { cols, rows, cellSize, gap, shape, tension, style, cornerRadius, blob, smoothJoins, hideGuides, sym: symmetry, sizes: sizesRef.current, ignored: ignoredRef.current }
     // geometry that changes the canvas size (cols/rows/spacing) re-fits the
     // content centered, so the grid always fits on screen and grows from the
     // middle — even after the user has panned or zoomed.
     const geomChanged =
       cols !== lastColsRef.current || rows !== lastRowsRef.current || gap !== lastGapRef.current
+    // symmetry mode or the reflection axes (cols/rows) changed → rebuild mirrors
+    const symOrGridChanged =
+      symmetry !== lastSymRef.current || cols !== lastColsRef.current || rows !== lastRowsRef.current
     if (gap !== lastGapRef.current || cellSize !== lastSizeRef.current) {
       reseed(cfgRef.current)
       lastGapRef.current = gap
@@ -561,9 +591,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     }
     lastColsRef.current = cols
     lastRowsRef.current = rows
+    if (symOrGridChanged) { rebuildMirrors(cfgRef.current); lastSymRef.current = symmetry }
     if (!touchedRef.current || geomChanged) ctrlRef.current?.fit()
     wake()
-  }, [cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, smoothJoins, hideGuides, editMode])
+  }, [cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, smoothJoins, hideGuides, editMode, symmetry])
 
   // re-read theme colors so pins/ropes recolor on light/dark switch (deferred to rAF
   // so the parent's data-theme update has committed first)
@@ -741,6 +772,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           const tol = 10 / viewRef.current.scale
           for (let i = ropesRef.current.length - 1; i >= 0; i--) {
             const rope = ropesRef.current[i]
+            if (rope.derived) continue   // mirrors follow their base; not directly editable
             if (!rope.joints || rope.joints.length < 3) continue
             if (pointInPoly(w, rope.joints) || distToPolyEdges(w, rope.joints) <= tol) return rope
           }
@@ -815,10 +847,12 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         // Shift-hover target: remove an existing handle, else add on the nearest edge
         const shiftTargetAt = (w) => {
           for (let i = ropesRef.current.length - 1; i >= 0; i--) {
+            if (ropesRef.current[i].derived) continue
             const vi = vertexIndexAt(ropesRef.current[i], w)
             if (vi >= 0) return { kind: 'remove', rope: ropesRef.current[i], index: vi }
           }
           for (let i = ropesRef.current.length - 1; i >= 0; i--) {
+            if (ropesRef.current[i].derived) continue
             const e = edgeInsertAt(ropesRef.current[i], w)
             if (e) return { kind: 'add', rope: ropesRef.current[i], insertAfter: e.insertAfter, g: e.g, world: e.world }
           }
@@ -836,6 +870,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
                 reseedRope(t.rope, cfgRef.current); wake()
                 histRef.current.push({ kind: 'edit', rope: t.rope, before, after: t.rope.loop.map((g) => ({ ...g })) })
                 redoRef.current = []; refreshHist()
+                rebuildMirrors(cfgRef.current)
               }
             }
             editShiftRef.current = null
@@ -845,6 +880,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           // straight away, without a prior selecting click
           for (let i = ropesRef.current.length - 1; i >= 0; i--) {
             const rope = ropesRef.current[i]
+            if (rope.derived) continue
             const vi = vertexIndexAt(rope, w)
             if (vi >= 0) {
               editRopeRef.current = rope
@@ -873,7 +909,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             }
             editShiftRef.current = null
             let over = false
-            for (const rope of ropesRef.current) { if (vertexIndexAt(rope, w) >= 0) { over = true; break } }
+            for (const rope of ropesRef.current) { if (!rope.derived && vertexIndexAt(rope, w) >= 0) { over = true; break } }
             if (!over) over = !!ropeAt(w)
             editHoverRef.current = over
             el.style.cursor = (spaceRef.current || panToolRef.current) ? 'grab' : (over ? 'move' : 'default')
@@ -909,6 +945,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             redoRef.current = []
             refreshHist()
           }
+          rebuildMirrors(cfgRef.current)
         }
 
         // paint mode (drag): visit a pin, connecting it to the previous one when adjacent
@@ -1071,6 +1108,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
               histRef.current.push({ kind: 'rope', rope })
               redoRef.current = []
               refreshHist()
+              rebuildMirrors(cfgRef.current)
             }
           }
         }
@@ -1097,6 +1135,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           histRef.current.push({ kind: 'rope', rope })
           redoRef.current = []
           refreshHist()
+          rebuildMirrors(cfgRef.current)
         }
         // add a vertex on click; close when clicking near the first point
         const pointsDown = (w) => {
@@ -1400,6 +1439,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           const sc = v.scale
           const O = PAD + CELL / 2, pitch = CELL + cfg.gap
           for (const rope of ropesRef.current) {
+            if (rope.derived) continue   // no handles on mirror copies
             const selected = rope === editRopeRef.current
             if (selected && rope.joints && rope.joints.length >= 2) {
               p.noFill(); p.stroke(COL.accent); p.strokeWeight(1.5 / sc)
@@ -1481,7 +1521,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     snapshot() {
       const cfg = cfgRef.current
       const drawing = {
-        ropes: ropesRef.current.map((r) => ({ loop: (r.loop || []).map((g) => ({ gx: g.gx, gy: g.gy })) })),
+        ropes: ropesRef.current.filter((r) => !r.derived).map((r) => ({ loop: (r.loop || []).map((g) => ({ gx: g.gx, gy: g.gy })) })),
         paint: { nodes: [...paintNodesRef.current], edges: [...paintEdgesRef.current] },
         sizes: [...sizesRef.current.entries()],
         ignored: [...ignoredRef.current],
@@ -1505,6 +1545,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         reseedRope(rope, cfgRef.current)
         return rope
       })
+      rebuildMirrors(cfgRef.current)
       paintNodesRef.current = new Set(drawing.paint?.nodes || [])
       paintEdgesRef.current = new Set(drawing.paint?.edges || [])
       histRef.current = []; redoRef.current = []
