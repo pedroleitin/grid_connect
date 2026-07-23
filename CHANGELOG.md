@@ -28,6 +28,15 @@ All notable changes to this project. Newest first.
   **Path** edit mode is active so the pins under them stay visible.
 
 ### Added
+- **Select mode**: a third Mode (Draw / Paint / **Select**) — a hybrid of Draw and Paint. Click pins
+  in sequence and a band wraps them live, using the **same shrink-wrap physics as Draw** so it hugs
+  the pins cleanly and follows the path's bends (concave corners are kept where pins hold them open).
+  The chain seeds the elastic ring, which then settles around exactly the chained pins — no
+  self-intersecting artifacts on winding paths. Each pin shows a numbered order badge while chaining;
+  the live preview is the settling rope itself. Finish with **double-click** or **Enter**, cancel with
+  **Esc**. Select ropes re-seed deterministically from their pin chain on grid/size changes, respond to
+  Symmetry, and export to SVG/PNG like any rope. **Style** now shows in Draw and Select (both produce
+  fill/outline ropes), hidden only in Paint.
 - **Randomize — Diagonals (Paint)**: a checkbox (Paint mode) that controls the generated connections'
   direction. On (default) links can run in all 8 directions (diagonals included); off restricts them
   to horizontal/vertical only, so shapes turn at right angles. Clusters grow to match the link

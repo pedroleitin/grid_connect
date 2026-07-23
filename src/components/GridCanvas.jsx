@@ -3,7 +3,7 @@ import p5 from 'p5'
 import {
   canvasSize, cellCenter, pins, seedJoints, stepRope,
   splineSegments, buildSVG, calmFor, CELL, PAD, sizeOf,
-  bridge, adjacentCells,
+  bridge, adjacentCells, selectBelt,
 } from '../lib/geometry'
 
 /* render a rope: closed Catmull-Rom spline through its physics joints */
@@ -115,6 +115,9 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const polyRef = useRef(null)      // polygon vertices (world coords) while building, or null
   const polyCursorRef = useRef(null)   // live cursor (world) for the rubber-band segment
   const polyClosedAtRef = useRef(0)    // timestamp guard so a closing double-click won't reopen
+  const selectChainRef = useRef(null)  // Select mode: ordered pins [{r,c}] being chained, or null
+  const selectPreviewRef = useRef(null) // Select mode: live physics rope for the chain preview
+  const lastSelDownRef = useRef(null)  // { key, t } guard so a commit double-click won't re-add
   const styleAnimRef = useRef({ from: style, t: 1 })  // crossfade between styles
   const styleCurRef = useRef(style)
   const lastGapRef = useRef(gap)
@@ -189,6 +192,14 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   }
 
   const reseedRope = (rope, cfg) => {
+    if (rope.select && rope.chain) {
+      // Select mode: seed a ring around the ordered chain of pins, then let the
+      // same shrink-wrap physics as Draw pull it tight around them.
+      const centers = rope.chain.map((k) => cellCenter(k.r, k.c, cfg))
+      const radii = rope.chain.map((k) => sizeOf(cfg, k.r, k.c) / 2)
+      rope.joints = seedJoints(selectBelt(centers, radii), 10)
+      return
+    }
     if (!rope.loop) return
     const O = PAD + CELL / 2, pitch = CELL + cfg.gap
     const pts = rope.loop.map((g) => ({ x: O + g.gx * pitch, y: O + g.gy * pitch }))
@@ -261,6 +272,16 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     if (!fs.length) { wake(); return }
     const base = ropesRef.current.slice()
     for (const rope of base) {
+      if (rope.select && rope.chain) {
+        // mirror the chain cells (same reflector order as the draw loop reflectors)
+        for (const cf of cfs) {
+          const chain = rope.chain.map(({ r, c }) => { const [nr, nc] = cf(r, c); return { r: nr, c: nc } })
+          const m = { chain, select: true, derived: true }
+          reseedRope(m, cfg)
+          if (m.joints && m.joints.length >= 2) ropesRef.current.push(m)
+        }
+        continue
+      }
       if (!rope.loop) continue
       for (const f of fs) {
         const m = { loop: rope.loop.map((g) => f(g)), derived: true }
@@ -1106,6 +1127,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           }
           el.setPointerCapture(e.pointerId)
           if (modeRef.current === 'edit') { editDown(worldOf(e)); return }
+          if (modeRef.current === 'select') { selectDown(worldOf(e)); return }
           if (modeRef.current === 'paint') {
             const hit = pinAt(worldOf(e))
             paintDragRef.current = { downHit: hit, last: hit, addedNodes: [], addedEdges: [] }
@@ -1145,6 +1167,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
               el.style.cursor = paintHoverRef.current
                 ? 'pointer'
                 : (spaceRef.current || panToolRef.current ? 'grab' : 'crosshair')
+            } else if (modeRef.current === 'select') {
+              el.style.cursor = pinAt(worldOf(e))
+                ? 'pointer'
+                : (spaceRef.current || panToolRef.current ? 'grab' : 'crosshair')
             } else if (drawToolRef.current === 'points') {
               polyCursorRef.current = worldOf(e)
               el.style.cursor = (spaceRef.current || panToolRef.current) ? 'grab'
@@ -1155,6 +1181,35 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           const q = worldOf(e), last = curRef.current[curRef.current.length - 1]
           if (Math.hypot(q.x - last.x, q.y - last.y) >= 8 / viewRef.current.scale) curRef.current.push(q)
         })
+        // Select mode: click pins to chain an ordered belt; dbl-click/Enter commits.
+        const selectDown = (w) => {
+          const hit = pinAt(w)
+          if (!hit) return
+          const key = hit.r + ',' + hit.c
+          const now = performance.now()
+          // ignore the second down of a commit double-click on the same pin
+          if (lastSelDownRef.current && lastSelDownRef.current.key === key &&
+              now - lastSelDownRef.current.t < 350) { lastSelDownRef.current.t = now; return }
+          lastSelDownRef.current = { key, t: now }
+          if (!selectChainRef.current) selectChainRef.current = []
+          selectChainRef.current.push({ r: hit.r, c: hit.c })
+          // rebuild the live physics preview rope from the current chain
+          const prev = { chain: selectChainRef.current.map((k) => ({ r: k.r, c: k.c })), select: true }
+          reseedRope(prev, cfgRef.current)
+          selectPreviewRef.current = prev
+          wake()
+        }
+        const finishSelect = () => {
+          const chain = selectChainRef.current
+          const rope = selectPreviewRef.current
+          selectChainRef.current = null; selectPreviewRef.current = null; lastSelDownRef.current = null
+          el.style.cursor = idleCursor()
+          if (!chain || !chain.length || !rope || !rope.joints || rope.joints.length < 2) return
+          ropesRef.current.push(rope); wake()
+          histRef.current.push({ kind: 'rope', rope })
+          redoRef.current = []; refreshHist()
+          rebuildMirrors(cfgRef.current)
+        }
         const finishDraw = () => {
           if (!curRef.current) return
           const pts = curRef.current
@@ -1238,8 +1293,11 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         })
         el.addEventListener('pointercancel', () => { curRef.current = null; panRef.current = null; dragPinRef.current = null; paintDragRef.current = null; editDragRef.current = null })
         el.addEventListener('pointerleave', () => { paintHoverRef.current = null })
-        // double-click closes the polygon (Points tool)
+        // double-click closes the polygon (Points tool) or commits a Select chain
         el.addEventListener('dblclick', (e) => {
+          if (modeRef.current === 'select' && selectChainRef.current && selectChainRef.current.length) {
+            e.preventDefault(); finishSelect(); return
+          }
           if (polyRef.current && polyRef.current.length >= 3) { e.preventDefault(); closePolygon() }
         })
 
@@ -1260,6 +1318,12 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         onKeyDown = (e) => {
           if (e.key === 'Escape' && polyRef.current) {
             polyRef.current = null; polyCursorRef.current = null; el.style.cursor = idleCursor()
+          }
+          if (e.key === 'Escape' && selectChainRef.current) {
+            selectChainRef.current = null; selectPreviewRef.current = null; lastSelDownRef.current = null; el.style.cursor = idleCursor(); wake()
+          }
+          if (e.key === 'Enter' && modeRef.current === 'select' && selectChainRef.current) {
+            e.preventDefault(); finishSelect()
           }
           if (e.code === 'Space' && !spaceRef.current && (e.target === document.body || e.target === el)) {
             spaceRef.current = true; if (!panRef.current) el.style.cursor = 'grab'; e.preventDefault()
@@ -1312,7 +1376,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         // physics (world data) — shrink-wrap ropes around the pins while awake;
         // frozen during an edit drag so vertices move freely without flicker
         // (the rope only re-settles on pointer release in editUp).
-        if (simRef.current.active && !editDragRef.current && ropesRef.current.length) {
+        if (simRef.current.active && !editDragRef.current && (ropesRef.current.length || selectPreviewRef.current)) {
           const poles = pins(cfg)
           const { w, h } = canvasSize(cfg.cols, cfg.rows, cfg.gap)
           // bounds must cover the drawn ropes too (you can draw beyond the grid),
@@ -1327,7 +1391,11 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           const M = 200
           const bounds = { xMin: xMin - M, xMax: xMax + M, yMin: yMin - M, yMax: yMax + M }
           let vmax = 0
-          for (const rope of ropesRef.current) vmax = Math.max(vmax, stepRope(rope.joints, poles, cfg, bounds))
+          for (const rope of ropesRef.current) {
+            vmax = Math.max(vmax, stepRope(rope.joints, poles, cfg, bounds))
+          }
+          if (selectPreviewRef.current && selectPreviewRef.current.joints)
+            vmax = Math.max(vmax, stepRope(selectPreviewRef.current.joints, poles, cfg, bounds))
           if (vmax < calmFor(cfg.tension)) simRef.current.active = false
         }
 
@@ -1495,6 +1563,34 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           }
         }
 
+        // preview of the Select belt being chained: translucent belt fill + dashed
+        // outline, plus a numbered badge over each pin in creation order.
+        if (modeRef.current === 'select' && selectChainRef.current && selectChainRef.current.length) {
+          const chain = selectChainRef.current, sc = v.scale
+          const centers = chain.map((k) => cellCenter(k.r, k.c, cfg))
+          const prev = selectPreviewRef.current
+          if (prev && prev.joints && prev.joints.length >= 3) {
+            drawRope(p, prev.joints, cfg.style, COL, 0.35)
+            const { start, segs } = splineSegments(prev.joints, true)
+            p.noFill(); p.stroke(COL.accent); p.strokeWeight(2 / sc)
+            p.drawingContext.setLineDash([6 / sc, 5 / sc])
+            p.beginShape(); p.vertex(start.x, start.y)
+            for (const s of segs) p.bezierVertex(s.c1x, s.c1y, s.c2x, s.c2y, s.x, s.y)
+            p.endShape(p.CLOSE)
+            p.drawingContext.setLineDash([])
+          }
+          const seen = {}
+          p.textAlign(p.CENTER, p.CENTER); p.textStyle(p.BOLD); p.textSize(14 / sc)
+          for (let i = 0; i < chain.length; i++) {
+            const key = chain[i].r + ',' + chain[i].c
+            const n = seen[key] || 0; seen[key] = n + 1
+            const ct = centers[i]
+            const bx = ct.x + n * (16 / sc), by = ct.y - n * (16 / sc)
+            p.noStroke(); p.fill(COL.ink); p.circle(bx, by, 22 / sc)
+            p.fill(COL.empty); p.text(String(i + 1), bx, by)
+          }
+        }
+
         // edit mode: show draggable vertex handles for every rope right away
         // (no selecting click needed); highlight the actively-dragged one's outline.
         if (editDraw) {
@@ -1567,6 +1663,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     clear() {
       ropesRef.current = []; histRef.current = []; redoRef.current = []; curRef.current = null
       polyRef.current = null; polyCursorRef.current = null
+      selectChainRef.current = null; selectPreviewRef.current = null; lastSelDownRef.current = null
       editRopeRef.current = null; editDragRef.current = null
       paintNodesRef.current.clear(); paintEdgesRef.current.clear(); paintDragRef.current = null
       paintMirNodesRef.current.clear(); paintMirEdgesRef.current.clear()
@@ -1584,7 +1681,9 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     snapshot() {
       const cfg = cfgRef.current
       const drawing = {
-        ropes: ropesRef.current.filter((r) => !r.derived).map((r) => ({ loop: (r.loop || []).map((g) => ({ gx: g.gx, gy: g.gy })) })),
+        ropes: ropesRef.current.filter((r) => !r.derived).map((r) => r.select
+          ? { select: true, chain: (r.chain || []).map((k) => ({ r: k.r, c: k.c })) }
+          : { loop: (r.loop || []).map((g) => ({ gx: g.gx, gy: g.gy })) }),
         paint: { nodes: [...paintNodesRef.current], edges: [...paintEdgesRef.current] },
         sizes: [...sizesRef.current.entries()],
         ignored: [...ignoredRef.current],
@@ -1607,7 +1706,9 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       ignoredRef.current.clear()
       for (const k of drawing.ignored || []) ignoredRef.current.add(k)
       ropesRef.current = (drawing.ropes || []).map((r) => {
-        const rope = { loop: (r.loop || []).map((g) => ({ gx: g.gx, gy: g.gy })) }
+        const rope = r.select
+          ? { select: true, chain: (r.chain || []).map((k) => ({ r: k.r, c: k.c })) }
+          : { loop: (r.loop || []).map((g) => ({ gx: g.gx, gy: g.gy })) }
         reseedRope(rope, cfgRef.current)
         return rope
       })

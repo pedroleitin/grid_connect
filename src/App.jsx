@@ -26,7 +26,7 @@ export default function App() {
   const [hideGuides, setHideGuides] = useState(false)
   const [editTool, setEditTool] = useState('off')  // 'off' | 'sizes' (circle sizes) | 'path' (reshape ropes)
   const [darkMode, setDarkMode] = useState(false)
-  const [mode, setMode] = useState('draw')       // 'draw' (rope) | 'paint' (blob connect)
+  const [mode, setMode] = useState('draw')       // 'draw' (rope) | 'paint' (blob) | 'select' (belt)
   const [drawTool, setDrawTool] = useState('points') // 'points' (polygon) | 'free' (freehand)
   const [fill, setFill] = useState(40)           // randomize coverage (0..100)
   const [rndSingle, setRndSingle] = useState(false)  // one connected element vs several
@@ -130,7 +130,7 @@ export default function App() {
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return
       switch (e.key.toLowerCase()) {
-        case 'm': setMode((v) => (v === 'draw' ? 'paint' : 'draw')); break
+        case 'm': setMode((v) => (v === 'draw' ? 'paint' : v === 'paint' ? 'select' : 'draw')); break
         case 'l': setDrawTool((v) => (v === 'free' ? 'points' : 'free')); break
         case 's': setStyle((v) => (v === 'fill' ? 'stroke' : 'fill')); break
         case 'p': setShape((v) => (v === 'circle' ? 'square' : 'circle')); break

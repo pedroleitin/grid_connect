@@ -14,14 +14,17 @@
   center axes; each reflection is its own shape and mirroring happens after carving so halves match.
   Works in Draw and Paint, refines live.
 - [ ] **Erase** tool: remove drawn ropes (or parts of them) directly on the canvas.
-- [ ] **Select line tool** (Line → Select): a third Line option (alongside Points/Freehand) that
-  builds a shape by clicking pins directly — each clicked pin is added to the selection and the
-  shrink-wrap shape is generated/updated live as you go (Draw-mode style, so the elastic rope wraps
-  the picked pins). Like a manual version of Randomize's cluster wrap, but the user chooses the pins.
-- [ ] **Mode-aware controls**: hide/disable controls that don't apply to the current Mode. E.g.
-  **Style** (Filled/Outline) only affects Draw ropes, so hide it in Paint; the new **Select** Line
-  option only makes sense in Draw, and the **Line** control itself can be hidden in modes where it
-  doesn't apply. Keep the sidebar showing only the controls relevant to the active Mode.
+- [x] **Select mode** (Mode → Select): a third Mode, hybrid of Draw and Paint. Click pins in
+  sequence to chain them; the band wraps them live using the same shrink-wrap physics as Draw, so it
+  hugs the pins cleanly and follows the path's bends without self-intersecting artifacts (order badges
+  shown while chaining; the preview is the settling rope). Double-click/Enter commits, Esc cancels.
+  Belt re-seeds from the pin chain, respects Symmetry, and exports like any rope.
+- [ ] **Select mode — refinements** (planned): keep improving the Select wrap. Ideas: restore a
+  distinct **revisit-a-pin → wrap outside** behavior on top of the physics model, tighter/looser band
+  control, and smoother handling of very tight/winding chains.
+- [x] **Mode-aware controls**: hide/disable controls that don't apply to the current Mode. **Style**
+  is hidden in Paint (shown in Draw/Select), **Line** and **Rope tension** only in Draw, **Blob
+  spread / Smooth joins / Diagonals** only in Paint, **Edit → Path** only in Draw.
 - [ ] **Presets**: save/load named configurations (grid, sizes, style, mode, drawings).
 - [x] **History dock**: a floating image button (right of the sidebar, vertically centered)
   saves the current drawing (ropes + paint + per-circle sizes/ignored + full config) and an

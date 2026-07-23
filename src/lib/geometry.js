@@ -337,6 +337,92 @@ export function adjacentCells(a, b) {
   return dr <= 1 && dc <= 1 && !(dr === 0 && dc === 0);
 }
 
+/* External-tangent unit normal when going from circle A (center ca, radius ra)
+   to circle B (cb, rb), on the given side (+1 = left, -1 = right). The tangent
+   line touches A at ca + ra*u and B at cb + rb*u; u is that shared normal. */
+function tangentNormal(ca, ra, cb, rb, side) {
+  const dx = cb.x - ca.x, dy = cb.y - ca.y;
+  const L = Math.hypot(dx, dy) || 1e-6;
+  const d = { x: dx / L, y: dy / L };
+  const n = { x: -d.y, y: d.x };            // left normal
+  let a = (ra - rb) / L;
+  a = Math.max(-1, Math.min(1, a));
+  const b = Math.sqrt(Math.max(0, 1 - a * a)) * side;
+  return { x: a * d.x + b * n.x, y: a * d.y + b * n.y };
+}
+
+/* Belt-around-pulleys outline for an ordered chain of pins (Select mode).
+   Given ordered centers + radii it returns a dense closed loop [{x,y}] that
+   threads every pin along the path (external tangents + arcs) with rounded end
+   caps — like a taut rubber band around a sequence of pulleys. Used as the seed
+   ring for the Select-mode shrink-wrap: the physics then settles it tightly
+   around the chained pins (following the path's bends, resolving any crossings). */
+export function selectBelt(centers, radii, arcStep = 0.3) {
+  // drop consecutive coincident centers (keep the larger radius)
+  const C = [], R = [];
+  for (let i = 0; i < centers.length; i++) {
+    const p = centers[i];
+    if (C.length && Math.hypot(p.x - C[C.length - 1].x, p.y - C[C.length - 1].y) < 1e-6) {
+      R[R.length - 1] = Math.max(R[R.length - 1], radii[i]); continue;
+    }
+    C.push(p); R.push(radii[i]);
+  }
+  const m = C.length;
+  if (m === 0) return [];
+  const circle = (c, r, n = 48) => {
+    const out = [];
+    for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; out.push({ x: c.x + r * Math.cos(a), y: c.y + r * Math.sin(a) }); }
+    return out;
+  };
+  if (m === 1) return circle(C[0], R[0]);
+
+  const uL = [], uR = [], dir = [];
+  for (let s = 0; s < m - 1; s++) {
+    uL.push(tangentNormal(C[s], R[s], C[s + 1], R[s + 1], +1));
+    uR.push(tangentNormal(C[s], R[s], C[s + 1], R[s + 1], -1));
+    const dx = C[s + 1].x - C[s].x, dy = C[s + 1].y - C[s].y, L = Math.hypot(dx, dy) || 1e-6;
+    dir.push({ x: dx / L, y: dy / L });
+  }
+  const pts = [];
+  const ang = (u) => Math.atan2(u.y, u.x);
+  const push = (c, r, a) => pts.push({ x: c.x + r * Math.cos(a), y: c.y + r * Math.sin(a) });
+  const arc = (c, r, a0, a1, ccw) => {
+    let da = a1 - a0;
+    if (ccw) { while (da < 0) da += Math.PI * 2; } else { while (da > 0) da -= Math.PI * 2; }
+    const steps = Math.max(1, Math.ceil(Math.abs(da) / arcStep));
+    for (let k = 0; k <= steps; k++) push(c, r, a0 + da * (k / steps));
+  };
+  // short-way arc between two normals (a convex outside join)
+  const joinArc = (c, r, uIn, uOut) => {
+    const a0 = ang(uIn), a1 = ang(uOut);
+    let da = ((a1 - a0 + Math.PI) % (Math.PI * 2)) - Math.PI;
+    arc(c, r, a0, a1, da >= 0);
+  };
+  // cap arc from uFrom to uTo passing through the `through` direction
+  const capArc = (c, r, uFrom, uTo, through) => {
+    const a0 = ang(uFrom), a1 = ang(uTo), at = ang(through);
+    const covers = (ccw) => {
+      let da = a1 - a0; if (ccw) { while (da < 0) da += Math.PI * 2; } else { while (da > 0) da -= Math.PI * 2; }
+      let dt = at - a0; while (dt < 0) dt += Math.PI * 2; while (dt > Math.PI * 2) dt -= Math.PI * 2;
+      return ccw ? dt <= da + 1e-6 : (dt - Math.PI * 2) >= da - 1e-6;
+    };
+    arc(c, r, a0, a1, covers(true));
+  };
+
+  // LEFT side, forward: touch at vertex 0, arcs at intermediate vertices, touch at last
+  push(C[0], R[0], ang(uL[0]));
+  for (let i = 1; i < m - 1; i++) joinArc(C[i], R[i], uL[i - 1], uL[i]);
+  push(C[m - 1], R[m - 1], ang(uL[m - 2]));
+  // end cap: around the far side of the last pin
+  capArc(C[m - 1], R[m - 1], uL[m - 2], uR[m - 2], dir[m - 2]);
+  // RIGHT side, backward
+  for (let i = m - 2; i >= 1; i--) joinArc(C[i], R[i], uR[i], uR[i - 1]);
+  push(C[0], R[0], ang(uR[0]));
+  // start cap: around the near side of the first pin
+  capArc(C[0], R[0], uR[0], uL[0], { x: -dir[0].x, y: -dir[0].y });
+  return pts;
+}
+
 /* Clean SVG: one closed Catmull-Rom <path> per rope (filled or outlined),
    plus filled circles + metaball bridges for the painted blobs. */
 export function buildSVG(ropes, paint, cfg, ink) {

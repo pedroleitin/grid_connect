@@ -170,8 +170,8 @@ export default function Sidebar({
         </div>
 
         <Segmented
-          label="Mode" value={mode} onChange={setMode} kbd="m"
-          options={[{ value: 'draw', label: 'Draw' }, { value: 'paint', label: 'Paint' }]}
+          label="Mode" value={mode} onChange={setMode} kbd="m" width={210}
+          options={[{ value: 'draw', label: 'Draw' }, { value: 'paint', label: 'Paint' }, { value: 'select', label: 'Select' }]}
         />
         <div className={`collapse-row${mode === 'draw' ? ' collapse-row--open' : ''}`}>
           <div>
@@ -181,7 +181,7 @@ export default function Sidebar({
             />
           </div>
         </div>
-        <div className={`collapse-row${mode === 'draw' ? ' collapse-row--open' : ''}`}>
+        <div className={`collapse-row${mode !== 'paint' ? ' collapse-row--open' : ''}`}>
           <div>
             <Segmented
               label="Style" value={style} onChange={setStyle} kbd="s"
