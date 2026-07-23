@@ -4,6 +4,17 @@ All notable changes to this project. Newest first.
 
 ## Unreleased
 
+### Added
+- **Select mode — Randomize**: pressing Randomize (or **G**) in Select mode now scatters spread-out
+  pins and connects them into ordered belt(s) that shrink-wrap. A **Points** slider sets how many pins
+  each shape has, **Sinuosity** controls whether the connecting path runs nearest-first (clean) or
+  wanders, **Single shape** makes one shape vs several, and **Symmetry** mirrors them live. The
+  Randomize panel swaps Fill/Channels for Points in Select mode.
+- **Select mode — Path editing**: **Edit → Path** now also works in Select mode. Each chained pin
+  shows a draggable node handle; drag a node onto another pin to **re-route** the belt (the shape
+  re-wraps the new pins), or click the body to select. Re-routes are undoable/redoable and mirror
+  live with Symmetry.
+
 ### Changed
 - **Symmetry now mirrors Paint live too**. Painted connections made by hand (drag or click-to-link)
   are mirrored on screen as you toggle Symmetry, and switching to **Off** removes the mirrors — the

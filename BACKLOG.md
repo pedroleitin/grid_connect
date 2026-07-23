@@ -22,6 +22,11 @@
 - [ ] **Select mode — refinements** (planned): keep improving the Select wrap. Ideas: restore a
   distinct **revisit-a-pin → wrap outside** behavior on top of the physics model, tighter/looser band
   control, and smoother handling of very tight/winding chains.
+- [x] **Select mode — Randomize**: scatter spread-out pins and connect them into ordered belt(s) that
+  shrink-wrap. **Points** slider = pins per shape, **Sinuosity** = nearest-first vs wandering path,
+  **Single shape** = one vs several, **Symmetry** mirrors live.
+- [x] **Select mode — Path editing** (Edit → Path in Select): drag a chained pin's node handle onto
+  another pin to re-route the belt; click the body to select. Undoable/redoable, mirrors live.
 - [x] **Mode-aware controls**: hide/disable controls that don't apply to the current Mode. **Style**
   is hidden in Paint (shown in Draw/Select), **Line** and **Rope tension** only in Draw, **Blob
   spread / Smooth joins / Diagonals** only in Paint, **Edit → Path** only in Draw.

@@ -140,6 +140,7 @@ export default function Sidebar({
   rndSinuosity, setRndSinuosity, rndSeed,
   rndSym, setRndSym,
   rndDiagonals, setRndDiagonals,
+  rndPoints, setRndPoints,
   rndOpen, setRndOpen, onReroll,
   onClear, onResetCircles,
 }) {
@@ -199,8 +200,8 @@ export default function Sidebar({
           </div>
         </div>
         <Segmented
-          label="Edit" value={editTool} onChange={setEditTool} kbd="e" width={mode === 'draw' ? 210 : 140}
-          options={mode === 'draw'
+          label="Edit" value={editTool} onChange={setEditTool} kbd="e" width={(mode === 'draw' || mode === 'select') ? 210 : 140}
+          options={(mode === 'draw' || mode === 'select')
             ? [{ value: 'off', label: 'Off' }, { value: 'sizes', label: 'Sizes' }, { value: 'path', label: 'Path' }]
             : [{ value: 'off', label: 'Off' }, { value: 'sizes', label: 'Sizes' }]}
         />
@@ -211,9 +212,19 @@ export default function Sidebar({
         <Checkbox label="Hide guides" checked={hideGuides} onChange={setHideGuides} kbd="h" />
 
         <Accordion title="Randomize" open={rndOpen} onToggle={() => setRndOpen((v) => !v)}>
-          <Slider label="Fill" min={5} max={100} value={fill} suffix="%" onChange={setFill} />
-          <Slider label="Channels" min={0} max={100} value={rndChannels} suffix="%" onChange={setRndChannels} />
-          <Slider label="Sinuosity" min={0} max={100} value={rndSinuosity} suffix="%" onChange={setRndSinuosity} />
+          <div className={`collapse-row${mode !== 'select' ? ' collapse-row--open' : ''}`}>
+            <div>
+              <Slider label="Fill" min={5} max={100} value={fill} suffix="%" onChange={setFill} />
+              <Slider label="Channels" min={0} max={100} value={rndChannels} suffix="%" onChange={setRndChannels} />
+              <Slider label="Sinuosity" min={0} max={100} value={rndSinuosity} suffix="%" onChange={setRndSinuosity} />
+            </div>
+          </div>
+          <div className={`collapse-row${mode === 'select' ? ' collapse-row--open' : ''}`}>
+            <div>
+              <Slider label="Points" min={2} max={20} value={rndPoints} onChange={setRndPoints} />
+              <Slider label="Sinuosity" min={0} max={100} value={rndSinuosity} suffix="%" onChange={setRndSinuosity} />
+            </div>
+          </div>
           <Checkbox label="Single shape" checked={rndSingle} onChange={setRndSingle} />
           <div className={`collapse-row${mode === 'paint' ? ' collapse-row--open' : ''}`}>
             <div>

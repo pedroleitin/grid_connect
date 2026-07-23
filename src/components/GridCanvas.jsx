@@ -171,6 +171,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       // restore the rope's loop (undo -> before, redo -> after) and re-seed it
       act.rope.loop = (add ? act.after : act.before).map((g) => ({ ...g }))
       reseedRope(act.rope, cfgRef.current)
+    } else if (act.kind === 'edit-chain') {
+      // restore a Select rope's pin chain (undo -> before, redo -> after)
+      act.rope.chain = (add ? act.after : act.before).map((k) => ({ r: k.r, c: k.c }))
+      reseedRope(act.rope, cfgRef.current)
     }
   }
 
@@ -299,7 +303,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   // cells becomes a shrink-wrap rope; in Paint mode clusters become connected
   // node/edge blobs. Replaces the current drawing.
   const randomize = (fill, opts = {}) => {
-    const { single = false, channels = 50, sinuosity = 50, sym = 'off', diagonals = true } = opts
+    const { single = false, channels = 50, sinuosity = 50, sym = 'off', diagonals = true, points = 5 } = opts
     const seed = (opts.seed == null ? (Math.random() * 2 ** 32) : opts.seed) >>> 0
     // seeded PRNG (mulberry32) so a given seed reproduces the same drawing
     const rng = ((a) => () => {
@@ -424,7 +428,81 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       return list
     }
 
-    if (modeRef.current === 'paint') {
+    if (modeRef.current === 'select') {
+      // Select mode: scatter spread-out pins and connect them into ordered
+      // chain(s) that shrink-wrap into a belt. `points` sets how many pins per
+      // shape; `sinuosity` makes the connecting path wander vs run nearest-first;
+      // `single` makes one shape, else several small ones spread across the grid.
+      const pool = new Set(cells)
+      // pick `count` spread-apart cells (best-candidate / blue-noise sampling)
+      const pickPoints = (count) => {
+        const chosen = []
+        const arr0 = [...pool]
+        if (!arr0.length) return chosen
+        let first = arr0[(rng() * arr0.length) | 0]
+        chosen.push(first); pool.delete(first)
+        while (chosen.length < count && pool.size) {
+          const arr = [...pool]
+          const samples = Math.min(arr.length, 10)
+          let best = null, bestD = -Infinity
+          for (let i = 0; i < samples; i++) {
+            const cand = arr[(rng() * arr.length) | 0]
+            const { r, c } = parse(cand)
+            let md = Infinity
+            for (const s of chosen) { const p = parse(s); const d = (r - p.r) ** 2 + (c - p.c) ** 2; if (d < md) md = d }
+            if (md > bestD) { bestD = md; best = cand }
+          }
+          chosen.push(best); pool.delete(best)
+        }
+        return chosen
+      }
+      // order the chosen cells into a path: nearest-neighbour when sinuosity is
+      // low (clean, compact belt), jittered so it wanders when sinuosity is high
+      const orderChain = (cellsK) => {
+        const pts = cellsK.map(parse)
+        if (pts.length <= 2) return pts
+        const used = new Array(pts.length).fill(false)
+        let cur = (rng() * pts.length) | 0
+        used[cur] = true
+        const order = [pts[cur]]
+        for (let step = 1; step < pts.length; step++) {
+          let best = -1, bestD = Infinity
+          for (let i = 0; i < pts.length; i++) {
+            if (used[i]) continue
+            const d = (pts[i].r - pts[cur].r) ** 2 + (pts[i].c - pts[cur].c) ** 2
+            const j = 1 + (rng() - 0.5) * 2 * sin * 3   // sinuosity → wandering order
+            const sc = d * j
+            if (sc < bestD) { bestD = sc; best = i }
+          }
+          used[best] = true; order.push(pts[best]); cur = best
+        }
+        return order
+      }
+      const ropes = []
+      const emitChain = (chain) => {
+        if (!chain.length) return
+        const rope = { select: true, chain: chain.map((k) => ({ r: k.r, c: k.c })) }
+        reseedRope(rope, cfg)
+        if (rope.joints && rope.joints.length >= 2) ropes.push(rope)
+      }
+      const nWanted = Math.max(1, Math.min(total, points))
+      if (single) {
+        emitChain(orderChain(pickPoints(nWanted)))
+      } else {
+        // several shapes, each a handful of pins, until we've placed ~target pins
+        const budget = Math.max(nWanted, target)
+        let placed = 0
+        while (placed < budget && pool.size) {
+          const per = Math.max(2, Math.min(pool.size, nWanted))
+          const picked = pickPoints(per)
+          if (!picked.length) break
+          emitChain(orderChain(picked))
+          placed += picked.length
+        }
+      }
+      ropesRef.current = ropes
+      paintNodesRef.current.clear(); paintEdgesRef.current.clear()
+    } else if (modeRef.current === 'paint') {
       const nodes = new Set(), edges = new Set()
       // adjacency for links: 8-way when diagonals on, else 4-way (H/V only)
       const linked = (a, b) => {
@@ -889,6 +967,19 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           }
           return best
         }
+        // index of the Select-chain node (a pin) near a world point (or -1)
+        const chainNodeAt = (rope, w) => {
+          if (!rope || !rope.select || !rope.chain) return -1
+          const cfg = cfgRef.current
+          const R = 14 / viewRef.current.scale
+          let best = -1, bestD = R
+          for (let i = 0; i < rope.chain.length; i++) {
+            const ct = cellCenter(rope.chain[i].r, rope.chain[i].c, cfg)
+            const d = Math.hypot(w.x - ct.x, w.y - ct.y)
+            if (d <= bestD) { bestD = d; best = i }
+          }
+          return best
+        }
         // nearest loop edge to a world point (for Shift-add); returns the insert
         // slot (in unique-point index space) and the snapped point, or null
         const edgeInsertAt = (rope, w) => {
@@ -963,6 +1054,16 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           for (let i = ropesRef.current.length - 1; i >= 0; i--) {
             const rope = ropesRef.current[i]
             if (rope.derived) continue
+            if (rope.select) {
+              // Select ropes: grab a chain node to re-route it to another pin
+              const ci = chainNodeAt(rope, w)
+              if (ci >= 0) {
+                editRopeRef.current = rope
+                editDragRef.current = { kind: 'chain', rope, index: ci, before: rope.chain.map((k) => ({ r: k.r, c: k.c })) }
+                return
+              }
+              continue
+            }
             const vi = vertexIndexAt(rope, w)
             if (vi >= 0) {
               editRopeRef.current = rope
@@ -973,6 +1074,9 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           const rp = ropeAt(w)
           if (rp) {
             editRopeRef.current = rp
+            // Select ropes are reshaped by dragging their pin nodes, not by moving
+            // the whole body — clicking the body just selects it (shows handles).
+            if (rp.select) return
             editDragRef.current = { kind: 'move', rope: rp, before: rp.loop.map((g) => ({ ...g })), lastW: { x: w.x, y: w.y } }
             return
           }
@@ -991,13 +1095,23 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             }
             editShiftRef.current = null
             let over = false
-            for (const rope of ropesRef.current) { if (!rope.derived && vertexIndexAt(rope, w) >= 0) { over = true; break } }
+            for (const rope of ropesRef.current) {
+              if (rope.derived) continue
+              if (rope.select ? chainNodeAt(rope, w) >= 0 : vertexIndexAt(rope, w) >= 0) { over = true; break }
+            }
             if (!over) over = !!ropeAt(w)
             editHoverRef.current = over
             el.style.cursor = (spaceRef.current || panToolRef.current) ? 'grab' : (over ? 'move' : 'default')
             return
           }
-          if (d.kind === 'move') {
+          if (d.kind === 'chain') {
+            // snap the dragged node onto whichever pin is under the cursor
+            const hit = pinAt(w)
+            if (hit && (d.rope.chain[d.index].r !== hit.r || d.rope.chain[d.index].c !== hit.c)) {
+              d.rope.chain[d.index] = { r: hit.r, c: hit.c }
+              reseedRope(d.rope, cfgRef.current)   // re-wrap seed; physics settles on release
+            }
+          } else if (d.kind === 'move') {
             const dx = w.x - d.lastW.x, dy = w.y - d.lastW.y
             d.lastW.x = w.x; d.lastW.y = w.y
             for (const j of d.rope.joints) { j.x += dx; j.y += dy; j.vx = 0; j.vy = 0 }
@@ -1016,9 +1130,21 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           const d = editDragRef.current
           editDragRef.current = null
           if (!d) return
-          // re-settle this rope from its (translated / reshaped) loop on release,
-          // so the shrink-wrap physics runs after the mouse is let go.
+          // re-settle this rope from its (translated / reshaped) loop/chain on
+          // release, so the shrink-wrap physics runs after the mouse is let go.
           reseedRope(d.rope, cfgRef.current); wake()
+          if (d.kind === 'chain') {
+            const after = d.rope.chain.map((k) => ({ r: k.r, c: k.c }))
+            const changed = d.before.length !== after.length ||
+              d.before.some((k, i) => k.r !== after[i].r || k.c !== after[i].c)
+            if (changed) {
+              histRef.current.push({ kind: 'edit-chain', rope: d.rope, before: d.before, after })
+              redoRef.current = []
+              refreshHist()
+            }
+            rebuildMirrors(cfgRef.current)
+            return
+          }
           const after = d.rope.loop.map((g) => ({ ...g }))
           const changed = d.before.length !== after.length ||
             d.before.some((g, i) => g.gx !== after[i].gx || g.gy !== after[i].gy)
@@ -1617,6 +1743,17 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
                 const activeV = selected && di && di.kind === 'vertex' && di.index === i
                 p.fill(COL.accent); p.stroke(COL.ink); p.strokeWeight(1 / sc)
                 p.circle(x, y, (activeV ? 13 : 10) / sc)
+              }
+              p.noStroke()
+            }
+            // Select ropes: draggable node handles over each chained pin center
+            if (rope.select && rope.chain && rope.chain.length) {
+              const di = editDragRef.current
+              for (let i = 0; i < rope.chain.length; i++) {
+                const ct = cellCenter(rope.chain[i].r, rope.chain[i].c, cfg)
+                const activeV = selected && di && di.kind === 'chain' && di.index === i
+                p.fill(COL.accent); p.stroke(COL.ink); p.strokeWeight(1 / sc)
+                p.circle(ct.x, ct.y, (activeV ? 15 : 12) / sc)
               }
               p.noStroke()
             }
