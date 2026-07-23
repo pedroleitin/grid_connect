@@ -5,6 +5,10 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Changed
+- **Symmetry now mirrors Paint live too**. Painted connections made by hand (drag or click-to-link)
+  are mirrored on screen as you toggle Symmetry, and switching to **Off** removes the mirrors — the
+  same live behavior Draw already had. Randomize keeps working (it no longer bakes symmetry; the live
+  layer handles it). Exports (SVG/PNG) and history previews include the mirrored blobs.
 - **Style is hidden in Paint mode** (it only affects Draw ropes; Paint blobs are always filled), the
   same way **Line** already collapses outside Draw.
 - **Symmetry is now a global Draw control** (moved out of the Randomize accordion). It mirrors any

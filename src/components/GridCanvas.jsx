@@ -101,8 +101,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const ignoredRef = useRef(new Set())  // ignored cells ("r,c"): no drawing interaction
   const cfgRef = useRef({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, blob, hideGuides, sizes: sizesRef.current, ignored: ignoredRef.current })
   const ropesRef = useRef([])       // physics ropes: { loop, joints }
-  const paintNodesRef = useRef(new Set())  // painted cells "r,c"
-  const paintEdgesRef = useRef(new Set())  // painted links: sorted "ka|kb"
+  const paintNodesRef = useRef(new Set())  // painted cells "r,c" (base)
+  const paintEdgesRef = useRef(new Set())  // painted links: sorted "ka|kb" (base)
+  const paintMirNodesRef = useRef(new Set()) // derived symmetry mirror nodes
+  const paintMirEdgesRef = useRef(new Set()) // derived symmetry mirror edges
   const paintDragRef = useRef(null)        // in-progress paint drag state
   const histRef = useRef([])        // unified undo stack: { kind, ... }
   const redoRef = useRef([])        // undone actions, for redo
@@ -209,13 +211,52 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     return fs
   }
 
-  // Symmetry as a live derived layer: the user's drawn/randomized ropes are the
-  // base (no `derived` flag); this drops the previous mirror copies and rebuilds
-  // them from the base set for the current symmetry mode. Called whenever the base
-  // set or the symmetry/grid changes, so toggling symmetry re-mirrors what's on
-  // screen. Mirror ropes are real ropes (they shrink-wrap their own pins).
+  // Cell reflectors in (r,c) space for the painted graph. Mirror a cell across the
+  // grid's center axes; H mirrors columns, V rows, Radial both (4-fold).
+  const cellReflectors = (sym, cols, rows) => {
+    if (!sym || sym === 'off') return []
+    const fs = []
+    if (sym === 'h' || sym === 'radial') fs.push((r, c) => [r, (cols - 1) - c])
+    if (sym === 'v' || sym === 'radial') fs.push((r, c) => [(rows - 1) - r, c])
+    if (sym === 'radial') fs.push((r, c) => [(rows - 1) - r, (cols - 1) - c])
+    return fs
+  }
+
+  // Symmetry as a live derived layer. Draw: the user's drawn/randomized ropes are
+  // the base (no `derived` flag); mirror copies are rebuilt from them. Paint: the
+  // base node/edge sets are mirrored into separate derived sets. Called whenever the
+  // base set or the symmetry/grid changes, so toggling symmetry re-mirrors what's on
+  // screen. Draw mirror ropes are real ropes (they shrink-wrap their own pins).
   const rebuildMirrors = (cfg) => {
     ropesRef.current = ropesRef.current.filter((r) => !r.derived)
+    // paint mirrors
+    const mn = new Set(), me = new Set()
+    const cfs = cellReflectors(cfg.sym, cfg.cols, cfg.rows)
+    if (cfs.length) {
+      const ig = ignoredRef.current
+      const R = cfg.rows, C = cfg.cols
+      const valid = (r, c) => r >= 0 && r < R && c >= 0 && c < C && !ig.has(r + ',' + c)
+      for (const f of cfs) {
+        for (const k of paintNodesRef.current) {
+          const [r, c] = k.split(',').map(Number)
+          const [nr, nc] = f(r, c)
+          if (valid(nr, nc)) { const nk = nr + ',' + nc; if (!paintNodesRef.current.has(nk)) mn.add(nk) }
+        }
+        for (const e of paintEdgesRef.current) {
+          const [ka, kb] = e.split('|')
+          const [ra, ca] = ka.split(',').map(Number)
+          const [rb, cb] = kb.split(',').map(Number)
+          const [na, ma] = f(ra, ca), [nb, mb] = f(rb, cb)
+          if (valid(na, ma) && valid(nb, mb)) {
+            const ek = edgeKey({ r: na, c: ma }, { r: nb, c: mb })
+            if (!paintEdgesRef.current.has(ek)) me.add(ek)
+          }
+        }
+      }
+    }
+    paintMirNodesRef.current = mn
+    paintMirEdgesRef.current = me
+    // draw mirrors
     const fs = loopReflectors(cfg.sym, cfg.cols, cfg.rows)
     if (!fs.length) { wake(); return }
     const base = ropesRef.current.slice()
@@ -362,25 +403,6 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       return list
     }
 
-    // Symmetry: reflect a cell across the grid's center axes (H mirrors columns,
-    // V mirrors rows, Radial does both + the 180° rotation → 4-fold). Reflected
-    // cells that fall off-grid or on an ignored pin are dropped. Used to make the
-    // generated shapes symmetric before they're outlined/connected.
-    const reflectorsFor = (m) => {
-      if (m === 'off') return []
-      const fs = []
-      if (m === 'h' || m === 'radial') fs.push(([r, c]) => [r, cols - 1 - c])
-      if (m === 'v' || m === 'radial') fs.push(([r, c]) => [rows - 1 - r, c])
-      if (m === 'radial') fs.push(([r, c]) => [rows - 1 - r, cols - 1 - c])
-      return fs
-    }
-    const reflectors = reflectorsFor(sym)
-    // reflect a single cell key by a mirror map (dropping off-grid/ignored), or null
-    const mapCell = (k, f) => {
-      const { r, c } = parse(k)
-      const [nr, nc] = f([r, c])
-      return (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !ig.has(key(nr, nc))) ? key(nr, nc) : null
-    }
     if (modeRef.current === 'paint') {
       const nodes = new Set(), edges = new Set()
       // Build a rich connection graph over a contiguous cluster (8-adjacency):
@@ -416,15 +438,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         for (let i = 0; i < nAdd; i++) edges.add(extra[i])
       }
       for (const cluster of makeClusters(true)) buildGraph(cluster)   // 8-connected
-      // mirror the whole node/edge graph so painted shapes are symmetric too
-      for (const f of reflectors) {
-        for (const k of [...nodes]) { const nk = mapCell(k, f); if (nk) nodes.add(nk) }
-        for (const e of [...edges]) {
-          const [ka, kb] = e.split('|')
-          const na = mapCell(ka, f), nb = mapCell(kb, f)
-          if (na && nb && na !== nb) edges.add(edgeKey(parse(na), parse(nb)))
-        }
-      }
+      // symmetry is applied live by rebuildMirrors (below), so no baking here
       paintNodesRef.current = nodes
       paintEdgesRef.current = edges
       ropesRef.current = []
@@ -1214,7 +1228,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           }
           if (dragPinRef.current) { dragPinRef.current = null; return }
           if (modeRef.current === 'edit') { editUp(); return }
-          if (paintDragRef.current) { finishPaint(); return }
+          if (paintDragRef.current) { finishPaint(); rebuildMirrors(cfgRef.current); return }
           finishDraw()
         })
         el.addEventListener('pointercancel', () => { curRef.current = null; panRef.current = null; dragPinRef.current = null; paintDragRef.current = null; editDragRef.current = null })
@@ -1422,6 +1436,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
 
         // painted blobs (metaball bridges + node circles + optional fillets)
         drawPaint(p, paintNodesRef.current, paintEdgesRef.current, cfg, COL, 1)
+        drawPaint(p, paintMirNodesRef.current, paintMirEdgesRef.current, cfg, COL, 1)
 
         // paint mode: tint the hovered/armed pin toward accent, on top of painted nodes too
         if (modeRef.current === 'paint' && !edit) {
@@ -1549,6 +1564,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       polyRef.current = null; polyCursorRef.current = null
       editRopeRef.current = null; editDragRef.current = null
       paintNodesRef.current.clear(); paintEdgesRef.current.clear(); paintDragRef.current = null
+      paintMirNodesRef.current.clear(); paintMirEdgesRef.current.clear()
       wake(); setCanUndo(false); setCanRedo(false)
     },
     resetCircles() {
@@ -1568,7 +1584,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         sizes: [...sizesRef.current.entries()],
         ignored: [...ignoredRef.current],
       }
-      const paint = { nodes: paintNodesRef.current, edges: paintEdgesRef.current }
+      const paint = {
+        nodes: new Set([...paintNodesRef.current, ...paintMirNodesRef.current]),
+        edges: new Set([...paintEdgesRef.current, ...paintMirEdgesRef.current]),
+      }
       // preview uses `currentColor` so it follows the active theme when rendered inline
       const previewSvg = buildSVG(ropesRef.current, paint, cfg, 'currentColor')
       return { drawing, previewSvg }
@@ -1587,9 +1606,9 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         reseedRope(rope, cfgRef.current)
         return rope
       })
-      rebuildMirrors(cfgRef.current)
       paintNodesRef.current = new Set(drawing.paint?.nodes || [])
       paintEdgesRef.current = new Set(drawing.paint?.edges || [])
+      rebuildMirrors(cfgRef.current)
       histRef.current = []; redoRef.current = []
       curRef.current = null; polyRef.current = null; polyCursorRef.current = null
       editRopeRef.current = null; editDragRef.current = null
@@ -1599,7 +1618,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       wake()
     },
     exportSVG() {
-      const paint = { nodes: paintNodesRef.current, edges: paintEdgesRef.current }
+      const paint = {
+        nodes: new Set([...paintNodesRef.current, ...paintMirNodesRef.current]),
+        edges: new Set([...paintEdgesRef.current, ...paintMirEdgesRef.current]),
+      }
       const svg = buildSVG(ropesRef.current, paint, cfgRef.current, colRef.current.ink)
       download(new Blob([svg], { type: 'image/svg+xml' }), 'grid.svg')
     },
@@ -1610,6 +1632,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       pg.pixelDensity(2); pg.clear()
       for (const rope of ropesRef.current) drawRope(pg, rope.joints, cfg.style, colRef.current)
       drawPaint(pg, paintNodesRef.current, paintEdgesRef.current, cfg, colRef.current, 1)
+      drawPaint(pg, paintMirNodesRef.current, paintMirEdgesRef.current, cfg, colRef.current, 1)
       p5Ref.current.saveCanvas(pg, 'grid', 'png')
       pg.remove()
     },
