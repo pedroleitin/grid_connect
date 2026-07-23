@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
 import p5 from 'p5'
 import {
-  canvasSize, cellCenter, pins, seedJoints, stepRope,
+  canvasSize, cellCenter, pins, buildPoleGrid, seedJoints, stepRope,
   splineSegments, buildSVG, calmFor, CELL, PAD, sizeOf,
   bridge, adjacentCells, selectBelt,
 } from '../lib/geometry'
@@ -1504,6 +1504,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         // (the rope only re-settles on pointer release in editUp).
         if (simRef.current.active && !editDragRef.current && (ropesRef.current.length || selectPreviewRef.current)) {
           const poles = pins(cfg)
+          const poleGrid = buildPoleGrid(poles)
           const { w, h } = canvasSize(cfg.cols, cfg.rows, cfg.gap)
           // bounds must cover the drawn ropes too (you can draw beyond the grid),
           // otherwise joints get clamped to the grid rect and the shape is cropped
@@ -1518,10 +1519,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           const bounds = { xMin: xMin - M, xMax: xMax + M, yMin: yMin - M, yMax: yMax + M }
           let vmax = 0
           for (const rope of ropesRef.current) {
-            vmax = Math.max(vmax, stepRope(rope.joints, poles, cfg, bounds))
+            vmax = Math.max(vmax, stepRope(rope.joints, poleGrid, cfg, bounds))
           }
           if (selectPreviewRef.current && selectPreviewRef.current.joints)
-            vmax = Math.max(vmax, stepRope(selectPreviewRef.current.joints, poles, cfg, bounds))
+            vmax = Math.max(vmax, stepRope(selectPreviewRef.current.joints, poleGrid, cfg, bounds))
           if (vmax < calmFor(cfg.tension)) simRef.current.active = false
         }
 
