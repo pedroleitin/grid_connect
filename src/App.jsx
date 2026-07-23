@@ -30,10 +30,15 @@ export default function App() {
   const [drawTool, setDrawTool] = useState('points') // 'points' (polygon) | 'free' (freehand)
   const [fill, setFill] = useState(40)           // randomize coverage (0..100)
   const [rndSingle, setRndSingle] = useState(false)  // one connected element vs several
-  const [rndComplexity, setRndComplexity] = useState(50) // shape complexity (0..100)
+  const [rndChannels, setRndChannels] = useState(50)   // corridor density/amount (0..100)
+  const [rndSinuosity, setRndSinuosity] = useState(60) // corridor tortuosity (0..100)
+  const [rndSym, setRndSym] = useState('off')          // symmetry: off | h | v | radial
+  const [rndSeed, setRndSeed] = useState(() => (Math.random() * 2 ** 32) >>> 0)
   const [rndOpen, setRndOpen] = useState(false)  // randomize accordion open state
-  const rndRef = useRef({ fill, single: rndSingle, complexity: rndComplexity })
-  useEffect(() => { rndRef.current = { fill, single: rndSingle, complexity: rndComplexity } }, [fill, rndSingle, rndComplexity])
+  const rndRef = useRef({ fill, single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, sym: rndSym, seed: rndSeed })
+  useEffect(() => { rndRef.current = { fill, single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, sym: rndSym, seed: rndSeed } }, [fill, rndSingle, rndChannels, rndSinuosity, rndSym, rndSeed])
+  // true once a random layout exists, so slider tweaks refine it live (same seed)
+  const rndActiveRef = useRef(false)
   const canvasApi = useRef(null)
 
   // history dock: saved drawing snapshots (persisted in localStorage)
@@ -78,7 +83,26 @@ export default function App() {
 
   const handleDeleteSnapshot = (id) => setSnapshots((s) => s.filter((x) => x.id !== id))
 
-  const handleRandomize = () => canvasApi.current?.randomize(fill, { single: rndSingle, complexity: rndComplexity })
+  // Randomize with the current seed (deterministic: tweak sliders, same layout evolves).
+  const handleRandomize = () =>
+    canvasApi.current?.randomize(fill, { single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, sym: rndSym, seed: rndSeed })
+
+  // Randomize button / G shortcut: pick a fresh seed and generate a new layout.
+  const handleReroll = () => {
+    const s = (Math.random() * 2 ** 32) >>> 0
+    setRndSeed(s)
+    rndActiveRef.current = true
+    canvasApi.current?.randomize(fill, { single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, sym: rndSym, seed: s })
+  }
+
+  // Once a random layout exists, dragging the Randomize sliders refines it live
+  // (keeps the current seed, so only the parameter you moved changes the shape).
+  useEffect(() => {
+    if (rndActiveRef.current) handleRandomize()
+  }, [fill, rndSingle, rndChannels, rndSinuosity, rndSym]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // clearing the canvas stops live slider refinement until the next Randomize
+  const handleClear = () => { rndActiveRef.current = false; canvasApi.current?.clear() }
 
   const leftInset = 330
   // reserve vertical space for the history dock so it never overlaps the grid
@@ -111,9 +135,9 @@ export default function App() {
         case 'p': setShape((v) => (v === 'circle' ? 'square' : 'circle')); break
         case 'h': setHideGuides((v) => !v); break
         case 'e': setEditTool((v) => (v === 'off' ? 'sizes' : v === 'sizes' ? 'path' : 'off')); break
-        case 'c': canvasApi.current?.clear(); break
+        case 'c': handleClear(); break
         case 'r': canvasApi.current?.resetCircles(); break
-        case 'g': { const o = rndRef.current; canvasApi.current?.randomize(o.fill, { single: o.single, complexity: o.complexity }); break }
+        case 'g': { const o = rndRef.current; const s = (Math.random() * 2 ** 32) >>> 0; setRndSeed(s); rndActiveRef.current = true; canvasApi.current?.randomize(o.fill, { single: o.single, channels: o.channels, sinuosity: o.sinuosity, sym: o.sym, seed: s }); break }
         default: return
       }
     }
@@ -140,10 +164,13 @@ export default function App() {
         editTool={editTool} setEditTool={setEditTool}
         fill={fill} setFill={setFill}
         rndSingle={rndSingle} setRndSingle={setRndSingle}
-        rndComplexity={rndComplexity} setRndComplexity={setRndComplexity}
+        rndChannels={rndChannels} setRndChannels={setRndChannels}
+        rndSinuosity={rndSinuosity} setRndSinuosity={setRndSinuosity}
+        rndSym={rndSym} setRndSym={setRndSym}
+        rndSeed={rndSeed}
         rndOpen={rndOpen} setRndOpen={setRndOpen}
-        onRandomize={handleRandomize}
-        onClear={() => canvasApi.current?.clear()}
+        onReroll={handleReroll}
+        onClear={handleClear}
         onResetCircles={() => canvasApi.current?.resetCircles()}
       />
 
@@ -173,6 +200,7 @@ export default function App() {
           cornerRadius={cornerRadius} mode={editTool === 'path' ? 'edit' : mode} blob={blob}
           drawTool={drawTool} smoothJoins={smoothJoins}
           hideGuides={hideGuides} editMode={editTool === 'sizes'} theme={darkMode ? 'dark' : 'light'}
+          symmetry={rndSym}
           leftInset={leftInset} bottomInset={bottomInset}
         />
       </main>

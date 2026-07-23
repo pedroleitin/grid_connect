@@ -90,7 +90,7 @@ const easeInOut = (t) => t * t * (3 - 2 * t)
 // ease-out cubic: fast start, gentle deceleration (used for the dock zoom)
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3)
 
-const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, smoothJoins, hideGuides, editMode, theme, leftInset = 0, bottomInset = 0 }, ref) {
+const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, smoothJoins, hideGuides, editMode, symmetry = 'off', theme, leftInset = 0, bottomInset = 0 }, ref) {
   const holderRef = useRef(null)   // p5 host container (pans/zooms)
   const bgRef = useRef(null)       // full-page dotted background (single seamless layer)
   const insetRef = useRef(leftInset) // left area hidden by the sidebar (for centering)
@@ -119,6 +119,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const lastSizeRef = useRef(cellSize)
   const lastColsRef = useRef(cols)
   const lastRowsRef = useRef(rows)
+  const lastSymRef = useRef(symmetry)
   const colRef = useRef({})
   const guideRef = useRef(1)  // animated pin opacity: eases to 0 when guides hidden
   const editModeRef = useRef(editMode)   // mirror for the p5 loop
@@ -173,6 +174,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     if (!act) return
     applyAction(act, false)
     redoRef.current.push(act)
+    rebuildMirrors(cfgRef.current)
     wake(); refreshHist()
   }
   const doRedo = () => {
@@ -180,6 +182,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     if (!act) return
     applyAction(act, true)
     histRef.current.push(act)
+    rebuildMirrors(cfgRef.current)
     wake(); refreshHist()
   }
 
@@ -194,6 +197,39 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     for (const rope of ropesRef.current) reseedRope(rope, cfg)
   }
 
+  // Reflectors in loop (grid-index) space: gx maps to a column, gy to a row, so a
+  // mirror is just index c -> (cols-1)-c / r -> (rows-1)-r. H mirrors left↔right,
+  // V top↔bottom, Radial both (4-fold).
+  const loopReflectors = (sym, cols, rows) => {
+    if (!sym || sym === 'off') return []
+    const fs = []
+    if (sym === 'h' || sym === 'radial') fs.push((g) => ({ gx: (cols - 1) - g.gx, gy: g.gy }))
+    if (sym === 'v' || sym === 'radial') fs.push((g) => ({ gx: g.gx, gy: (rows - 1) - g.gy }))
+    if (sym === 'radial') fs.push((g) => ({ gx: (cols - 1) - g.gx, gy: (rows - 1) - g.gy }))
+    return fs
+  }
+
+  // Symmetry as a live derived layer: the user's drawn/randomized ropes are the
+  // base (no `derived` flag); this drops the previous mirror copies and rebuilds
+  // them from the base set for the current symmetry mode. Called whenever the base
+  // set or the symmetry/grid changes, so toggling symmetry re-mirrors what's on
+  // screen. Mirror ropes are real ropes (they shrink-wrap their own pins).
+  const rebuildMirrors = (cfg) => {
+    ropesRef.current = ropesRef.current.filter((r) => !r.derived)
+    const fs = loopReflectors(cfg.sym, cfg.cols, cfg.rows)
+    if (!fs.length) { wake(); return }
+    const base = ropesRef.current.slice()
+    for (const rope of base) {
+      if (!rope.loop) continue
+      for (const f of fs) {
+        const m = { loop: rope.loop.map((g) => f(g)), derived: true }
+        reseedRope(m, cfg)
+        if (m.joints && m.joints.length >= 2) ropesRef.current.push(m)
+      }
+    }
+    wake()
+  }
+
   // Build a random drawing across the pins. `fill` (0..100) controls how much of
   // the grid is covered. `opts.single` makes it one connected element (fill drives
   // its size) instead of several; `opts.complexity` (0..100) tunes each shape from
@@ -201,8 +237,17 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   // cells becomes a shrink-wrap rope; in Paint mode clusters become connected
   // node/edge blobs. Replaces the current drawing.
   const randomize = (fill, opts = {}) => {
-    const { single = false, complexity = 50 } = opts
+    const { single = false, channels = 50, sinuosity = 50, sym = 'off' } = opts
+    const seed = (opts.seed == null ? (Math.random() * 2 ** 32) : opts.seed) >>> 0
+    // seeded PRNG (mulberry32) so a given seed reproduces the same drawing
+    const rng = ((a) => () => {
+      a |= 0; a = (a + 0x6D2B79F5) | 0
+      let t = Math.imul(a ^ (a >>> 15), 1 | a)
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    })(seed)
     const cfg = cfgRef.current
+    cfg.sym = sym
     const rows = cfg.rows, cols = cfg.cols
     const ig = ignoredRef.current
     const cells = []
@@ -216,16 +261,19 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     const target = Math.max(1, Math.round(f * total))
     // cap a single element to a fraction of the grid so high fill yields several
     const cap = Math.max(1, Math.round(total * 0.35))
-    const comp = Math.max(0, Math.min(1, (complexity || 0) / 100))
+    const ch = Math.max(0, Math.min(1, (channels || 0) / 100))    // corridor density/amount
+    const sin = Math.max(0, Math.min(1, (sinuosity || 0) / 100))  // corridor tortuosity
 
     const avail = new Set(cells)
     const key = (r, c) => r + ',' + c
     const parse = (k) => { const i = k.indexOf(','); return { r: +k.slice(0, i), c: +k.slice(i + 1) } }
-    const pick = (set) => { const a = [...set]; return a[(Math.random() * a.length) | 0] }
+    const pick = (set) => { const a = [...set]; return a[(rng() * a.length) | 0] }
 
-    // grow a contiguous cluster from a seed up to `size` cells. Complexity biases
-    // the growth: low = compact (frontier cell nearest the centroid → round blobs),
-    // high = branchy (random frontier cell → irregular tendrils).
+    // grow a contiguous cluster from a seed up to `size` cells. Channels drives
+    // branchiness: low → compact round blob (frontier nearest the centroid);
+    // high → grows arms/lobes outward (frontier farthest from the centroid), which
+    // the shrink-wrap renders as concave, complex shapes. Sinuosity jitters the
+    // outward pick so arms wander/wind rather than shoot straight out.
     const grow = (seed, size, diag) => {
       const cluster = new Set([seed])
       const frontier = []
@@ -242,20 +290,26 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       pushN(seed)
       const s = parse(seed); let sumR = s.r, sumC = s.c, n = 1
       while (cluster.size < size && frontier.length) {
-        let idx
-        if (Math.random() < comp * 0.3) {
-          idx = (Math.random() * frontier.length) | 0       // mild boundary irregularity
-        } else {
-          const cr = sumR / n, cc = sumC / n                // compact: nearest to centroid
-          let best = 0, bd = Infinity
+        const cr = sumR / n, cc = sumC / n
+        let best = 0
+        if (rng() < ch) {                                    // branch outward → arms/lobes
+          let bd = -Infinity
+          for (let i = 0; i < frontier.length; i++) {
+            const { r, c } = parse(frontier[i])
+            const d = (r - cr) ** 2 + (c - cc) ** 2
+            const jitter = 1 + (rng() - 0.5) * 2 * sin       // sinuosity → wandering arms
+            const sc = d * jitter
+            if (sc > bd) { bd = sc; best = i }
+          }
+        } else {                                             // compact → round base mass
+          let bd = Infinity
           for (let i = 0; i < frontier.length; i++) {
             const { r, c } = parse(frontier[i])
             const d = (r - cr) ** 2 + (c - cc) ** 2
             if (d < bd) { bd = d; best = i }
           }
-          idx = best
         }
-        const k = frontier.splice(idx, 1)[0]
+        const k = frontier.splice(best, 1)[0]
         cluster.add(k); pushN(k)
         const pk = parse(k); sumR += pk.r; sumC += pk.c; n++
       }
@@ -270,10 +324,36 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         for (const k of cluster) avail.delete(k)
         list.push(cluster)
       } else {
-        let remaining = target
+        // best-candidate ("blue-noise") seeding: sample a few free cells and keep the
+        // one farthest from the seeds already placed, so separate shapes spread apart
+        // instead of clumping. Size mixture: the first cluster is a large "hero", the
+        // rest are smaller "satellites".
+        const seeds = []
+        const pickSpread = () => {
+          const arr = [...avail]
+          if (!arr.length) return null
+          if (!seeds.length) return arr[(rng() * arr.length) | 0]
+          const samples = Math.min(arr.length, 8)
+          let best = null, bestD = -Infinity
+          for (let i = 0; i < samples; i++) {
+            const cand = arr[(rng() * arr.length) | 0]
+            const { r, c } = parse(cand)
+            let md = Infinity
+            for (const s of seeds) { const p = parse(s); const d = (r - p.r) ** 2 + (c - p.c) ** 2; if (d < md) md = d }
+            if (md > bestD) { bestD = md; best = cand }
+          }
+          return best
+        }
+        let remaining = target, hero = true
         while (remaining > 0 && avail.size) {
-          const size = 1 + ((Math.random() * Math.min(remaining, cap)) | 0)
-          const cluster = grow(pick(avail), size, diag)
+          const s = pickSpread()
+          if (s == null) break
+          seeds.push(s)
+          const size = hero
+            ? Math.max(1, Math.min(remaining, Math.round(cap * (0.7 + 0.3 * rng()))))   // hero
+            : 1 + ((rng() * Math.max(1, Math.min(remaining, cap) * 0.4)) | 0)            // satellite
+          hero = false
+          const cluster = grow(s, size, diag)
           for (const k of cluster) avail.delete(k)
           remaining -= cluster.size
           list.push(cluster)
@@ -282,23 +362,67 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       return list
     }
 
+    // Symmetry: reflect a cell across the grid's center axes (H mirrors columns,
+    // V mirrors rows, Radial does both + the 180° rotation → 4-fold). Reflected
+    // cells that fall off-grid or on an ignored pin are dropped. Used to make the
+    // generated shapes symmetric before they're outlined/connected.
+    const reflectorsFor = (m) => {
+      if (m === 'off') return []
+      const fs = []
+      if (m === 'h' || m === 'radial') fs.push(([r, c]) => [r, cols - 1 - c])
+      if (m === 'v' || m === 'radial') fs.push(([r, c]) => [rows - 1 - r, c])
+      if (m === 'radial') fs.push(([r, c]) => [rows - 1 - r, cols - 1 - c])
+      return fs
+    }
+    const reflectors = reflectorsFor(sym)
+    // reflect a single cell key by a mirror map (dropping off-grid/ignored), or null
+    const mapCell = (k, f) => {
+      const { r, c } = parse(k)
+      const [nr, nc] = f([r, c])
+      return (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !ig.has(key(nr, nc))) ? key(nr, nc) : null
+    }
     if (modeRef.current === 'paint') {
       const nodes = new Set(), edges = new Set()
-      for (const cluster of makeClusters(true)) {   // 8-connected
-        for (const k of cluster) nodes.add(k)
-        // connect the cluster into one component (spanning tree over 8-adjacency)
-        const conn = new Set(), rest = new Set(cluster)
-        conn.add([...rest][0]); rest.delete([...conn][0])
-        while (rest.size) {
-          let linked = false
-          for (const rk of rest) {
-            const ra = parse(rk)
-            for (const ck of conn) {
-              if (adjacentCells(ra, parse(ck))) { edges.add(edgeKey(ra, parse(ck))); conn.add(rk); rest.delete(rk); linked = true; break }
+      // Build a rich connection graph over a contiguous cluster (8-adjacency):
+      // a spanning tree grown DFS-style (serpentine chains) when sinuosity is high or
+      // BFS-style (compact hubs) when low, then a fraction (channels) of the remaining
+      // adjacent pairs added as extra edges to form cycles/loops.
+      const buildGraph = (cluster) => {
+        const arr = [...cluster]
+        for (const k of arr) nodes.add(k)
+        if (arr.length <= 1) return
+        const adj = new Map(arr.map((k) => [k, []]))
+        const pairs = []
+        for (let i = 0; i < arr.length; i++)
+          for (let j = i + 1; j < arr.length; j++)
+            if (adjacentCells(parse(arr[i]), parse(arr[j]))) {
+              adj.get(arr[i]).push(arr[j]); adj.get(arr[j]).push(arr[i]); pairs.push([arr[i], arr[j]])
             }
-            if (linked) break
-          }
-          if (!linked) { for (const rk of rest) conn.add(rk); rest.clear() }
+        const tree = new Set(), inTree = new Set([arr[0]]), stack = [arr[0]]
+        while (inTree.size < arr.length && stack.length) {
+          const idx = rng() < sin ? stack.length - 1 : 0   // DFS (chain) vs BFS (hub)
+          const cur = stack[idx]
+          const free = adj.get(cur).filter((n) => !inTree.has(n))
+          if (!free.length) { stack.splice(idx, 1); continue }
+          const nxt = free[(rng() * free.length) | 0]
+          inTree.add(nxt); tree.add(edgeKey(parse(cur), parse(nxt))); stack.push(nxt)
+        }
+        for (const e of tree) edges.add(e)
+        const extra = pairs
+          .map(([a, b]) => edgeKey(parse(a), parse(b)))
+          .filter((e) => !tree.has(e))
+        for (let i = extra.length - 1; i > 0; i--) { const j = (rng() * (i + 1)) | 0;[extra[i], extra[j]] = [extra[j], extra[i]] }
+        const nAdd = Math.round(extra.length * ch)   // channels → cycle density
+        for (let i = 0; i < nAdd; i++) edges.add(extra[i])
+      }
+      for (const cluster of makeClusters(true)) buildGraph(cluster)   // 8-connected
+      // mirror the whole node/edge graph so painted shapes are symmetric too
+      for (const f of reflectors) {
+        for (const k of [...nodes]) { const nk = mapCell(k, f); if (nk) nodes.add(nk) }
+        for (const e of [...edges]) {
+          const [ka, kb] = e.split('|')
+          const na = mapCell(ka, f), nb = mapCell(kb, f)
+          if (na && nb && na !== nb) edges.add(edgeKey(parse(na), parse(nb)))
         }
       }
       paintNodesRef.current = nodes
@@ -321,6 +445,23 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         }
         for (let r = minR; r <= maxR; r++)
           for (let c = minC; c <= maxC; c++) { const k = key(r, c); if (!cluster.has(k) && !outside.has(k)) cluster.add(k) }
+      }
+      // Fill diagonal-only pinches (checkerboard corners) so branchy clusters
+      // outline as a single clean loop. Without this the shrink-wrap tears the
+      // cluster apart at the 1-point junctions where two arms touch only at a corner.
+      const dePinch = (cluster) => {
+        let changed = true, guard = 0
+        while (changed && guard++ < 400) {
+          changed = false
+          for (const k of [...cluster]) {
+            const { r, c } = parse(k)
+            if (cluster.has(key(r + 1, c + 1)) && !cluster.has(key(r, c + 1)) && !cluster.has(key(r + 1, c))) {
+              cluster.add(key(r, c + 1)); changed = true
+            } else if (cluster.has(key(r + 1, c - 1)) && !cluster.has(key(r, c - 1)) && !cluster.has(key(r + 1, c))) {
+              cluster.add(key(r + 1, c)); changed = true
+            }
+          }
+        }
       }
       // Carve winding corridors (open notches) into a solid cluster to raise its
       // visual complexity. Removes cells along random inward walks while keeping the
@@ -361,27 +502,43 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         }
         return seen.size === cl.size - 1
       }
-      const carve = (cluster, budget) => {
+      // Carve winding corridors into the solid. `budget` cells removed; `sin`
+      // (0..1) biases each walk from straight (low → gentle notches) to turning
+      // often (high → tortuous, serpentine channels).
+      const carve = (cluster, budget, sin) => {
         let left = budget, guard = 0
         while (left > 0 && guard++ < budget * 30) {
           const boundary = [...cluster].filter((k) => touchesEmpty(cluster, k))
           if (!boundary.length) break
-          let cur = boundary[(Math.random() * boundary.length) | 0]
-          const walk = 3 + ((Math.random() * left) | 0)
-          let prev = null
+          let cur = boundary[(rng() * boundary.length) | 0]
+          const walk = 3 + ((rng() * left * (0.4 + 0.6 * sin)) | 0)
+          let pdir = null
           for (let s = 0; s < walk && left > 0; s++) {
             if (!cluster.has(cur) || !touchesEmpty(cluster, cur) ||
                 wouldPinch(cluster, cur) || !stillConnected(cluster, cur)) break
             cluster.delete(cur); left--
             const { r, c } = parse(cur)
-            // prefer to keep going straight (winding corridor), avoid backtracking
-            let nbs = [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]]
-              .map(([nr, nc]) => key(nr, nc)).filter((k) => cluster.has(k))
-            const fwd = nbs.filter((k) => k !== prev)
-            if (fwd.length) nbs = fwd
+            let nbs = [[-1, 0], [1, 0], [0, -1], [0, 1]]
+              .map(([dr, dc]) => ({ dr, dc, k: key(r + dr, c + dc) }))
+              .filter((o) => cluster.has(o.k))
+            if (pdir) {   // avoid immediate backtrack
+              const noBack = nbs.filter((o) => !(o.dr === -pdir[0] && o.dc === -pdir[1]))
+              if (noBack.length) nbs = noBack
+            }
             if (!nbs.length) break
-            prev = cur
-            cur = nbs[(Math.random() * nbs.length) | 0]
+            let chosen
+            if (pdir) {
+              const straight = nbs.filter((o) => o.dr === pdir[0] && o.dc === pdir[1])
+              const turn = nbs.filter((o) => !(o.dr === pdir[0] && o.dc === pdir[1]))
+              const wantTurn = rng() < sin
+              if (wantTurn && turn.length) chosen = turn[(rng() * turn.length) | 0]
+              else if (!wantTurn && straight.length) chosen = straight[0]
+              else chosen = nbs[(rng() * nbs.length) | 0]
+            } else {
+              chosen = nbs[(rng() * nbs.length) | 0]
+            }
+            pdir = [chosen.dr, chosen.dc]
+            cur = chosen.k
           }
         }
       }
@@ -413,10 +570,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       }
 
       const ropes = []
-      for (const cluster of makeClusters(false)) {
-        fillHoles(cluster)
-        carve(cluster, Math.round(comp * cluster.size * 0.45))
-        fillHoles(cluster)
+      const emit = (cluster) => {
         const pts = outline(cluster)
         if (pts.length >= 3) {
           const rope = { loop: [...pts, { ...pts[0] }] }
@@ -424,9 +578,21 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           if (rope.joints && rope.joints.length >= 2) ropes.push(rope)
         }
       }
+      for (const raw of makeClusters(false)) {
+        fillHoles(raw)
+        dePinch(raw)
+        carve(raw, Math.round(ch * raw.size * 0.6), sin)
+        fillHoles(raw)
+        dePinch(raw)
+        emit(raw)
+      }
       ropesRef.current = ropes
       paintNodesRef.current.clear(); paintEdgesRef.current.clear()
     }
+
+    // mirror the freshly built base ropes (Draw) for the current symmetry mode;
+    // paint bakes its own symmetry above, so this is a no-op there (no ropes)
+    rebuildMirrors(cfg)
 
     histRef.current = []; redoRef.current = []
     curRef.current = null; polyRef.current = null; polyCursorRef.current = null
@@ -451,12 +617,15 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       styleAnimRef.current = { from: styleCurRef.current, t: 0 }
       styleCurRef.current = style
     }
-    cfgRef.current = { cols, rows, cellSize, gap, shape, tension, style, cornerRadius, blob, smoothJoins, hideGuides, sizes: sizesRef.current, ignored: ignoredRef.current }
+    cfgRef.current = { cols, rows, cellSize, gap, shape, tension, style, cornerRadius, blob, smoothJoins, hideGuides, sym: symmetry, sizes: sizesRef.current, ignored: ignoredRef.current }
     // geometry that changes the canvas size (cols/rows/spacing) re-fits the
     // content centered, so the grid always fits on screen and grows from the
     // middle — even after the user has panned or zoomed.
     const geomChanged =
       cols !== lastColsRef.current || rows !== lastRowsRef.current || gap !== lastGapRef.current
+    // symmetry mode or the reflection axes (cols/rows) changed → rebuild mirrors
+    const symOrGridChanged =
+      symmetry !== lastSymRef.current || cols !== lastColsRef.current || rows !== lastRowsRef.current
     if (gap !== lastGapRef.current || cellSize !== lastSizeRef.current) {
       reseed(cfgRef.current)
       lastGapRef.current = gap
@@ -464,9 +633,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     }
     lastColsRef.current = cols
     lastRowsRef.current = rows
+    if (symOrGridChanged) { rebuildMirrors(cfgRef.current); lastSymRef.current = symmetry }
     if (!touchedRef.current || geomChanged) ctrlRef.current?.fit()
     wake()
-  }, [cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, smoothJoins, hideGuides, editMode])
+  }, [cols, rows, cellSize, gap, shape, tension, style, cornerRadius, mode, blob, drawTool, smoothJoins, hideGuides, editMode, symmetry])
 
   // re-read theme colors so pins/ropes recolor on light/dark switch (deferred to rAF
   // so the parent's data-theme update has committed first)
@@ -644,6 +814,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           const tol = 10 / viewRef.current.scale
           for (let i = ropesRef.current.length - 1; i >= 0; i--) {
             const rope = ropesRef.current[i]
+            if (rope.derived) continue   // mirrors follow their base; not directly editable
             if (!rope.joints || rope.joints.length < 3) continue
             if (pointInPoly(w, rope.joints) || distToPolyEdges(w, rope.joints) <= tol) return rope
           }
@@ -718,10 +889,12 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         // Shift-hover target: remove an existing handle, else add on the nearest edge
         const shiftTargetAt = (w) => {
           for (let i = ropesRef.current.length - 1; i >= 0; i--) {
+            if (ropesRef.current[i].derived) continue
             const vi = vertexIndexAt(ropesRef.current[i], w)
             if (vi >= 0) return { kind: 'remove', rope: ropesRef.current[i], index: vi }
           }
           for (let i = ropesRef.current.length - 1; i >= 0; i--) {
+            if (ropesRef.current[i].derived) continue
             const e = edgeInsertAt(ropesRef.current[i], w)
             if (e) return { kind: 'add', rope: ropesRef.current[i], insertAfter: e.insertAfter, g: e.g, world: e.world }
           }
@@ -739,6 +912,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
                 reseedRope(t.rope, cfgRef.current); wake()
                 histRef.current.push({ kind: 'edit', rope: t.rope, before, after: t.rope.loop.map((g) => ({ ...g })) })
                 redoRef.current = []; refreshHist()
+                rebuildMirrors(cfgRef.current)
               }
             }
             editShiftRef.current = null
@@ -748,6 +922,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           // straight away, without a prior selecting click
           for (let i = ropesRef.current.length - 1; i >= 0; i--) {
             const rope = ropesRef.current[i]
+            if (rope.derived) continue
             const vi = vertexIndexAt(rope, w)
             if (vi >= 0) {
               editRopeRef.current = rope
@@ -776,7 +951,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             }
             editShiftRef.current = null
             let over = false
-            for (const rope of ropesRef.current) { if (vertexIndexAt(rope, w) >= 0) { over = true; break } }
+            for (const rope of ropesRef.current) { if (!rope.derived && vertexIndexAt(rope, w) >= 0) { over = true; break } }
             if (!over) over = !!ropeAt(w)
             editHoverRef.current = over
             el.style.cursor = (spaceRef.current || panToolRef.current) ? 'grab' : (over ? 'move' : 'default')
@@ -812,6 +987,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             redoRef.current = []
             refreshHist()
           }
+          rebuildMirrors(cfgRef.current)
         }
 
         // paint mode (drag): visit a pin, connecting it to the previous one when adjacent
@@ -974,6 +1150,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
               histRef.current.push({ kind: 'rope', rope })
               redoRef.current = []
               refreshHist()
+              rebuildMirrors(cfgRef.current)
             }
           }
         }
@@ -1000,6 +1177,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           histRef.current.push({ kind: 'rope', rope })
           redoRef.current = []
           refreshHist()
+          rebuildMirrors(cfgRef.current)
         }
         // add a vertex on click; close when clicking near the first point
         const pointsDown = (w) => {
@@ -1303,6 +1481,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           const sc = v.scale
           const O = PAD + CELL / 2, pitch = CELL + cfg.gap
           for (const rope of ropesRef.current) {
+            if (rope.derived) continue   // no handles on mirror copies
             const selected = rope === editRopeRef.current
             if (selected && rope.joints && rope.joints.length >= 2) {
               p.noFill(); p.stroke(COL.accent); p.strokeWeight(1.5 / sc)
@@ -1384,7 +1563,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     snapshot() {
       const cfg = cfgRef.current
       const drawing = {
-        ropes: ropesRef.current.map((r) => ({ loop: (r.loop || []).map((g) => ({ gx: g.gx, gy: g.gy })) })),
+        ropes: ropesRef.current.filter((r) => !r.derived).map((r) => ({ loop: (r.loop || []).map((g) => ({ gx: g.gx, gy: g.gy })) })),
         paint: { nodes: [...paintNodesRef.current], edges: [...paintEdgesRef.current] },
         sizes: [...sizesRef.current.entries()],
         ignored: [...ignoredRef.current],
@@ -1408,6 +1587,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         reseedRope(rope, cfgRef.current)
         return rope
       })
+      rebuildMirrors(cfgRef.current)
       paintNodesRef.current = new Set(drawing.paint?.nodes || [])
       paintEdgesRef.current = new Set(drawing.paint?.edges || [])
       histRef.current = []; redoRef.current = []

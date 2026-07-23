@@ -5,6 +5,12 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Changed
+- **Style is hidden in Paint mode** (it only affects Draw ropes; Paint blobs are always filled), the
+  same way **Line** already collapses outside Draw.
+- **Symmetry is now a global Draw control** (moved out of the Randomize accordion). It mirrors any
+  drawing live — freehand/polygon shapes and randomized ones alike — and **re-mirrors what's already
+  on screen** when you change it: mirror copies are rebuilt whenever you draw, edit, undo/redo, or
+  change the grid. Switching it back to **Off** removes the mirrors and leaves the original.
 - **Smooth joins** (Paint mode) now defaults to **off**.
 - **Edit → Path** now only appears in **Draw** mode (Path reshapes ropes, which only exist in Draw);
   in Paint mode the **Edit** segmented shows just **Off / Sizes**. Switching to Paint while Path is
@@ -18,6 +24,27 @@ All notable changes to this project. Newest first.
   **Path** edit mode is active so the pins under them stay visible.
 
 ### Added
+- **Randomize — richer multi-shape distribution**: when generating several separate shapes, seeds are
+  now placed with best-candidate ("blue-noise") sampling so the shapes spread across the grid instead
+  of clumping, and their sizes follow a **hero + satellites** mixture — one large focal cluster plus
+  several smaller ones — for a more composed layout.
+- **Randomize — richer Paint graphs**: painted connections are no longer a bare spanning tree.
+  **Channels** now adds cycles/loops (a fraction of the remaining adjacent pairs become extra edges),
+  and **Sinuosity** shapes the topology from compact **hubs** (star-like, high-degree nodes) at low
+  values to long **serpentine chains** at high values.
+- **Symmetry**: a **Symmetry** control (Off / H / V / Radial) mirrors shapes across the grid's center
+  axes — **H** left↔right, **V** top↔bottom, **Radial** both (4-fold).
+  Each reflection is emitted as its own shape (so a mirror half is never dropped when it's detached
+  from the original), and mirroring happens after carving so both halves match exactly. Works in both
+  Draw (shrink-wrap ropes) and Paint (metaball graph).
+- **Randomize — Channels / Sinuosity + live refine**: the single **Complexity** slider is split into
+  two — **Channels** (how branchy/lobed the generated shapes are: low = compact round blobs, high =
+  organic multi-lobed forms) and **Sinuosity** (how much those arms wander/wind). Generation is
+  driven by a seeded PRNG: the **Randomize** button (and the **G** shortcut) picks a fresh seed each
+  time, and once a layout exists, dragging any Randomize slider **refines it live** on the current
+  seed — so you can dial in the shape without re-rolling. Branchy clusters are de-pinched
+  (diagonal-only corner touches filled) so the shrink-wrap always renders a single clean, connected
+  shape instead of tearing thin junctions apart.
 - **Random connection colors** (Paint mode): each painted connection now gets its own random color;
   the pins (circles/squares) stay the default ink color. The color is assigned when the link is
   created and persists through undo/redo; both the canvas render and the SVG/PNG export carry it.

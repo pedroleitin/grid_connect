@@ -136,8 +136,10 @@ export default function Sidebar({
   hideGuides, setHideGuides,
   editTool, setEditTool,
   fill, setFill,
-  rndSingle, setRndSingle, rndComplexity, setRndComplexity,
-  rndOpen, setRndOpen, onRandomize,
+  rndSingle, setRndSingle, rndChannels, setRndChannels,
+  rndSinuosity, setRndSinuosity, rndSeed,
+  rndSym, setRndSym,
+  rndOpen, setRndOpen, onReroll,
   onClear, onResetCircles,
 }) {
   return (
@@ -178,10 +180,14 @@ export default function Sidebar({
             />
           </div>
         </div>
-        <Segmented
-          label="Style" value={style} onChange={setStyle} kbd="s"
-          options={[{ value: 'fill', label: 'Filled' }, { value: 'stroke', label: 'Outline' }]}
-        />
+        <div className={`collapse-row${mode === 'draw' ? ' collapse-row--open' : ''}`}>
+          <div>
+            <Segmented
+              label="Style" value={style} onChange={setStyle} kbd="s"
+              options={[{ value: 'fill', label: 'Filled' }, { value: 'stroke', label: 'Outline' }]}
+            />
+          </div>
+        </div>
         <Segmented
           label="Pin" value={shape} onChange={setShape} kbd="p"
           options={[{ value: 'circle', label: 'Circle' }, { value: 'square', label: 'Square' }]}
@@ -197,14 +203,19 @@ export default function Sidebar({
             ? [{ value: 'off', label: 'Off' }, { value: 'sizes', label: 'Sizes' }, { value: 'path', label: 'Path' }]
             : [{ value: 'off', label: 'Off' }, { value: 'sizes', label: 'Sizes' }]}
         />
+        <Segmented
+          label="Symmetry" value={rndSym} onChange={setRndSym} width={210}
+          options={[{ value: 'off', label: 'Off' }, { value: 'h', label: 'H' }, { value: 'v', label: 'V' }, { value: 'radial', label: 'Radial' }]}
+        />
         <Checkbox label="Hide guides" checked={hideGuides} onChange={setHideGuides} kbd="h" />
 
         <Accordion title="Randomize" open={rndOpen} onToggle={() => setRndOpen((v) => !v)}>
           <Slider label="Fill" min={5} max={100} value={fill} suffix="%" onChange={setFill} />
-          <Slider label="Complexity" min={0} max={100} value={rndComplexity} suffix="%" onChange={setRndComplexity} />
+          <Slider label="Channels" min={0} max={100} value={rndChannels} suffix="%" onChange={setRndChannels} />
+          <Slider label="Sinuosity" min={0} max={100} value={rndSinuosity} suffix="%" onChange={setRndSinuosity} />
           <Checkbox label="Single shape" checked={rndSingle} onChange={setRndSingle} />
           <div className="px-5 pt-1 pb-3">
-            <button className="tool-btn w-full" onClick={onRandomize}>Randomize<Kbd k="g" /></button>
+            <button className="tool-btn w-full" onClick={onReroll} title={`Seed ${rndSeed}`}>Randomize<Kbd k="g" /></button>
           </div>
         </Accordion>
 
