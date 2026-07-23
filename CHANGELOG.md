@@ -28,6 +28,10 @@ All notable changes to this project. Newest first.
   **Path** edit mode is active so the pins under them stay visible.
 
 ### Added
+- **Randomize — Diagonals (Paint)**: a checkbox (Paint mode) that controls the generated connections'
+  direction. On (default) links can run in all 8 directions (diagonals included); off restricts them
+  to horizontal/vertical only, so shapes turn at right angles. Clusters grow to match the link
+  adjacency so the graph stays connected.
 - **Randomize — richer multi-shape distribution**: when generating several separate shapes, seeds are
   now placed with best-candidate ("blue-noise") sampling so the shapes spread across the grid instead
   of clumping, and their sizes follow a **hero + satellites** mixture — one large focal cluster plus

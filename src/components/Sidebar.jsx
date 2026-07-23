@@ -139,6 +139,7 @@ export default function Sidebar({
   rndSingle, setRndSingle, rndChannels, setRndChannels,
   rndSinuosity, setRndSinuosity, rndSeed,
   rndSym, setRndSym,
+  rndDiagonals, setRndDiagonals,
   rndOpen, setRndOpen, onReroll,
   onClear, onResetCircles,
 }) {
@@ -214,6 +215,11 @@ export default function Sidebar({
           <Slider label="Channels" min={0} max={100} value={rndChannels} suffix="%" onChange={setRndChannels} />
           <Slider label="Sinuosity" min={0} max={100} value={rndSinuosity} suffix="%" onChange={setRndSinuosity} />
           <Checkbox label="Single shape" checked={rndSingle} onChange={setRndSingle} />
+          <div className={`collapse-row${mode === 'paint' ? ' collapse-row--open' : ''}`}>
+            <div>
+              <Checkbox label="Diagonals" checked={rndDiagonals} onChange={setRndDiagonals} />
+            </div>
+          </div>
           <div className="px-5 pt-1 pb-3">
             <button className="tool-btn w-full" onClick={onReroll} title={`Seed ${rndSeed}`}>Randomize<Kbd k="g" /></button>
           </div>

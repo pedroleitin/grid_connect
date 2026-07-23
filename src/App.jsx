@@ -33,10 +33,11 @@ export default function App() {
   const [rndChannels, setRndChannels] = useState(50)   // corridor density/amount (0..100)
   const [rndSinuosity, setRndSinuosity] = useState(60) // corridor tortuosity (0..100)
   const [rndSym, setRndSym] = useState('off')          // symmetry: off | h | v | radial
+  const [rndDiagonals, setRndDiagonals] = useState(true) // paint: allow diagonal links (8-way) vs H/V only
   const [rndSeed, setRndSeed] = useState(() => (Math.random() * 2 ** 32) >>> 0)
   const [rndOpen, setRndOpen] = useState(false)  // randomize accordion open state
-  const rndRef = useRef({ fill, single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, sym: rndSym, seed: rndSeed })
-  useEffect(() => { rndRef.current = { fill, single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, sym: rndSym, seed: rndSeed } }, [fill, rndSingle, rndChannels, rndSinuosity, rndSym, rndSeed])
+  const rndRef = useRef({ fill, single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, sym: rndSym, diagonals: rndDiagonals, seed: rndSeed })
+  useEffect(() => { rndRef.current = { fill, single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, sym: rndSym, diagonals: rndDiagonals, seed: rndSeed } }, [fill, rndSingle, rndChannels, rndSinuosity, rndSym, rndDiagonals, rndSeed])
   // true once a random layout exists, so slider tweaks refine it live (same seed)
   const rndActiveRef = useRef(false)
   const canvasApi = useRef(null)
@@ -85,21 +86,21 @@ export default function App() {
 
   // Randomize with the current seed (deterministic: tweak sliders, same layout evolves).
   const handleRandomize = () =>
-    canvasApi.current?.randomize(fill, { single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, sym: rndSym, seed: rndSeed })
+    canvasApi.current?.randomize(fill, { single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, sym: rndSym, diagonals: rndDiagonals, seed: rndSeed })
 
   // Randomize button / G shortcut: pick a fresh seed and generate a new layout.
   const handleReroll = () => {
     const s = (Math.random() * 2 ** 32) >>> 0
     setRndSeed(s)
     rndActiveRef.current = true
-    canvasApi.current?.randomize(fill, { single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, sym: rndSym, seed: s })
+    canvasApi.current?.randomize(fill, { single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, sym: rndSym, diagonals: rndDiagonals, seed: s })
   }
 
   // Once a random layout exists, dragging the Randomize sliders refines it live
   // (keeps the current seed, so only the parameter you moved changes the shape).
   useEffect(() => {
     if (rndActiveRef.current) handleRandomize()
-  }, [fill, rndSingle, rndChannels, rndSinuosity, rndSym]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fill, rndSingle, rndChannels, rndSinuosity, rndSym, rndDiagonals]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // clearing the canvas stops live slider refinement until the next Randomize
   const handleClear = () => { rndActiveRef.current = false; canvasApi.current?.clear() }
@@ -137,7 +138,7 @@ export default function App() {
         case 'e': setEditTool((v) => (v === 'off' ? 'sizes' : v === 'sizes' ? 'path' : 'off')); break
         case 'c': handleClear(); break
         case 'r': canvasApi.current?.resetCircles(); break
-        case 'g': { const o = rndRef.current; const s = (Math.random() * 2 ** 32) >>> 0; setRndSeed(s); rndActiveRef.current = true; canvasApi.current?.randomize(o.fill, { single: o.single, channels: o.channels, sinuosity: o.sinuosity, sym: o.sym, seed: s }); break }
+        case 'g': { const o = rndRef.current; const s = (Math.random() * 2 ** 32) >>> 0; setRndSeed(s); rndActiveRef.current = true; canvasApi.current?.randomize(o.fill, { single: o.single, channels: o.channels, sinuosity: o.sinuosity, sym: o.sym, diagonals: o.diagonals, seed: s }); break }
         default: return
       }
     }
@@ -167,6 +168,7 @@ export default function App() {
         rndChannels={rndChannels} setRndChannels={setRndChannels}
         rndSinuosity={rndSinuosity} setRndSinuosity={setRndSinuosity}
         rndSym={rndSym} setRndSym={setRndSym}
+        rndDiagonals={rndDiagonals} setRndDiagonals={setRndDiagonals}
         rndSeed={rndSeed}
         rndOpen={rndOpen} setRndOpen={setRndOpen}
         onReroll={handleReroll}

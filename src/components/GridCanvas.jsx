@@ -278,7 +278,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   // cells becomes a shrink-wrap rope; in Paint mode clusters become connected
   // node/edge blobs. Replaces the current drawing.
   const randomize = (fill, opts = {}) => {
-    const { single = false, channels = 50, sinuosity = 50, sym = 'off' } = opts
+    const { single = false, channels = 50, sinuosity = 50, sym = 'off', diagonals = true } = opts
     const seed = (opts.seed == null ? (Math.random() * 2 ** 32) : opts.seed) >>> 0
     // seeded PRNG (mulberry32) so a given seed reproduces the same drawing
     const rng = ((a) => () => {
@@ -405,9 +405,14 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
 
     if (modeRef.current === 'paint') {
       const nodes = new Set(), edges = new Set()
-      // Build a rich connection graph over a contiguous cluster (8-adjacency):
-      // a spanning tree grown DFS-style (serpentine chains) when sinuosity is high or
-      // BFS-style (compact hubs) when low, then a fraction (channels) of the remaining
+      // adjacency for links: 8-way when diagonals on, else 4-way (H/V only)
+      const linked = (a, b) => {
+        const dr = Math.abs(a.r - b.r), dc = Math.abs(a.c - b.c)
+        return diagonals ? adjacentCells(a, b) : (dr + dc === 1)
+      }
+      // Build a rich connection graph over a contiguous cluster: a spanning tree
+      // grown DFS-style (serpentine chains) when sinuosity is high or BFS-style
+      // (compact hubs) when low, then a fraction (channels) of the remaining
       // adjacent pairs added as extra edges to form cycles/loops.
       const buildGraph = (cluster) => {
         const arr = [...cluster]
@@ -417,7 +422,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         const pairs = []
         for (let i = 0; i < arr.length; i++)
           for (let j = i + 1; j < arr.length; j++)
-            if (adjacentCells(parse(arr[i]), parse(arr[j]))) {
+            if (linked(parse(arr[i]), parse(arr[j]))) {
               adj.get(arr[i]).push(arr[j]); adj.get(arr[j]).push(arr[i]); pairs.push([arr[i], arr[j]])
             }
         const tree = new Set(), inTree = new Set([arr[0]]), stack = [arr[0]]
@@ -437,7 +442,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         const nAdd = Math.round(extra.length * ch)   // channels → cycle density
         for (let i = 0; i < nAdd; i++) edges.add(extra[i])
       }
-      for (const cluster of makeClusters(true)) buildGraph(cluster)   // 8-connected
+      for (const cluster of makeClusters(diagonals)) buildGraph(cluster)   // grow to match link adjacency
       // symmetry is applied live by rebuildMirrors (below), so no baking here
       paintNodesRef.current = nodes
       paintEdgesRef.current = edges
