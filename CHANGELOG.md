@@ -18,6 +18,11 @@ All notable changes to this project. Newest first.
   loop at the new pitch, re-wrapping the pins inside them). **Symmetry mirrors holes** live (each
   mirrored copy carries its holes). **Delete a hole**: in **Edit → Path**, **Shift+click** a hole to
   remove just that hole (undoable/redoable) — the delete cursor shows when hovering a hole.
+- **Randomize holes (P2.2)**: a **Holes** checkbox in the Randomize panel (Draw mode). When on,
+  Randomize keeps some enclosed interior cells as holes instead of filling everything — each becomes
+  a shrink-wrap ring around the pin it encloses (carved with fill-rule evenodd). Holes are scattered
+  and always fully walled in (a solid margin between them and the outer edge). Works with Symmetry
+  and is included in SVG/PNG exports. Best with higher Fill / lower Channels (needs solid interior).
 - **Select mode — Randomize**: pressing Randomize (or **G**) in Select mode now scatters spread-out
   pins and connects them into ordered belt(s) that shrink-wrap. A **Points** slider sets how many pins
   each shape has, **Sinuosity** controls whether the connecting path runs nearest-first (clean) or

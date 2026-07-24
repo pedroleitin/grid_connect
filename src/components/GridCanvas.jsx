@@ -354,7 +354,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   // cells becomes a shrink-wrap rope; in Paint mode clusters become connected
   // node/edge blobs. Replaces the current drawing.
   const randomize = (fill, opts = {}) => {
-    const { single = false, channels = 50, sinuosity = 50, sym = 'off', diagonals = true, points = 5 } = opts
+    const { single = false, channels = 50, sinuosity = 50, sym = 'off', diagonals = true, points = 5, holes = false } = opts
     const seed = (opts.seed == null ? (Math.random() * 2 ** 32) : opts.seed) >>> 0
     // seeded PRNG (mulberry32) so a given seed reproduces the same drawing
     const rng = ((a) => () => {
@@ -725,7 +725,14 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           if (!has(r, c - 1)) edges.set(BL.join(','), TL)
         }
         if (!edges.size) return []
-        const startK = edges.keys().next().value
+        // start on the OUTER contour: the top-left-most vertex is always on it, so
+        // interior void loops (holes) are never mistaken for the body outline
+        let startK = null, bestX = Infinity, bestY = Infinity
+        for (const k of edges.keys()) {
+          const ci = k.indexOf(',')
+          const x = +k.slice(0, ci), y = +k.slice(ci + 1)
+          if (y < bestY || (y === bestY && x < bestX)) { bestY = y; bestX = x; startK = k }
+        }
         const pts = []
         let curK = startK, guard = 0
         do {
@@ -739,10 +746,35 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       }
 
       const ropes = []
-      const emit = (cluster) => {
+      // Punch enclosed voids into a solid cluster to become holes. Only strictly
+      // interior cells (all 8 neighbours solid) are removed, so each void is fully
+      // walled in; re-checking interiority after each removal guarantees at least a
+      // 1-cell wall between holes (they never merge or reach the outer edge). Returns
+      // the removed void cells; each becomes its own hole loop (a unit-cell square).
+      const punchHoles = (cluster) => {
+        const interior = (k) => {
+          const { r, c } = parse(k)
+          for (let dr = -1; dr <= 1; dr++)
+            for (let dc = -1; dc <= 1; dc++)
+              if ((dr || dc) && !cluster.has(key(r + dr, c + dc))) return false
+          return true
+        }
+        const cand = [...cluster].filter(interior)
+        for (let i = cand.length - 1; i > 0; i--) { const j = (rng() * (i + 1)) | 0;[cand[i], cand[j]] = [cand[j], cand[i]] }
+        const want = Math.max(1, Math.round(cand.length / 3))
+        const voids = []
+        for (const k of cand) {
+          if (voids.length >= want) break
+          if (!interior(k) || !stillConnected(cluster, k)) continue
+          cluster.delete(k); voids.push(k)
+        }
+        return voids
+      }
+      const emit = (cluster, holeLoops) => {
         const pts = outline(cluster)
         if (pts.length >= 3) {
           const rope = { loop: [...pts, { ...pts[0] }] }
+          if (holeLoops && holeLoops.length) rope.holes = holeLoops
           reseedRope(rope, cfg)
           if (rope.joints && rope.joints.length >= 2) ropes.push(rope)
         }
@@ -753,7 +785,13 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         carve(raw, Math.round(ch * raw.size * 0.6), sin)
         fillHoles(raw)
         dePinch(raw)
-        emit(raw)
+        let holeLoops = null
+        if (holes) {
+          const voids = punchHoles(raw)
+          if (voids.length)
+            holeLoops = voids.map((k) => { const p = outline(new Set([k])); return [...p, { ...p[0] }] })
+        }
+        emit(raw, holeLoops)
       }
       ropesRef.current = ropes
       paintNodesRef.current.clear(); paintEdgesRef.current.clear()

@@ -141,6 +141,7 @@ export default function Sidebar({
   rndSym, setRndSym,
   rndDiagonals, setRndDiagonals,
   rndPoints, setRndPoints,
+  rndHoles, setRndHoles,
   rndOpen, setRndOpen, onReroll,
   onClear, onResetCircles,
 }) {
@@ -226,6 +227,11 @@ export default function Sidebar({
             </div>
           </div>
           <Checkbox label="Single shape" checked={rndSingle} onChange={setRndSingle} />
+          <div className={`collapse-row${mode === 'draw' ? ' collapse-row--open' : ''}`}>
+            <div>
+              <Checkbox label="Holes" checked={rndHoles} onChange={setRndHoles} />
+            </div>
+          </div>
           <div className={`collapse-row${mode === 'paint' ? ' collapse-row--open' : ''}`}>
             <div>
               <Checkbox label="Diagonals" checked={rndDiagonals} onChange={setRndDiagonals} />
