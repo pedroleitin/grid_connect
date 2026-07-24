@@ -200,8 +200,10 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       if (holes !== undefined) act.rope.holes = holes ? holes.map((hl) => hl.map((g) => ({ ...g }))) : null
       reseedRope(act.rope, cfgRef.current)
     } else if (act.kind === 'hole') {
-      // add a drawn hole to a rope (redo) / remove it (undo), then re-seed
-      if (add) act.rope.holes = [...(act.rope.holes || []), act.hole]
+      // add a drawn hole to a rope (redo) / remove it (undo), then re-seed.
+      // `inverse` flips it (used when the action IS a hole deletion).
+      const put = act.inverse ? !add : add
+      if (put) act.rope.holes = [...(act.rope.holes || []), act.hole]
       else act.rope.holes = (act.rope.holes || []).filter((h) => h !== act.hole)
       reseedRope(act.rope, cfgRef.current)
     } else if (act.kind === 'edit-chain') {
@@ -229,25 +231,29 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   }
 
   const reseedRope = (rope, cfg) => {
+    const O = PAD + CELL / 2, pitch = CELL + cfg.gap
+    const seedHoles = () => {
+      // hole rings contract & shrink-wrap the pins inside them, same as the body
+      if (rope.holes && rope.holes.length) {
+        rope.holeJoints = rope.holes.map((hl) =>
+          seedJoints(hl.map((g) => ({ x: O + g.gx * pitch, y: O + g.gy * pitch })), 10))
+      } else {
+        rope.holeJoints = null
+      }
+    }
     if (rope.select && rope.chain) {
       // Select mode: seed a ring around the ordered chain of pins, then let the
       // same shrink-wrap physics as Draw pull it tight around them.
       const centers = rope.chain.map((k) => cellCenter(k.r, k.c, cfg))
       const radii = rope.chain.map((k) => sizeOf(cfg, k.r, k.c) / 2)
       rope.joints = seedJoints(selectBelt(centers, radii), 10)
+      seedHoles()
       return
     }
     if (!rope.loop) return
-    const O = PAD + CELL / 2, pitch = CELL + cfg.gap
     const pts = rope.loop.map((g) => ({ x: O + g.gx * pitch, y: O + g.gy * pitch }))
     rope.joints = seedJoints(pts, 10)
-    // hole rings (P2.0 spike): seed a contracting ring per hole loop
-    if (rope.holes && rope.holes.length) {
-      rope.holeJoints = rope.holes.map((hl) =>
-        seedJoints(hl.map((g) => ({ x: O + g.gx * pitch, y: O + g.gy * pitch })), 10))
-    } else {
-      rope.holeJoints = null
-    }
+    seedHoles()
   }
 
   const reseed = (cfg) => {
@@ -318,9 +324,12 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     for (const rope of base) {
       if (rope.select && rope.chain) {
         // mirror the chain cells (same reflector order as the draw loop reflectors)
-        for (const cf of cfs) {
+        for (let ci = 0; ci < cfs.length; ci++) {
+          const cf = cfs[ci], lf = fs[ci]
           const chain = rope.chain.map(({ r, c }) => { const [nr, nc] = cf(r, c); return { r: nr, c: nc } })
           const m = { chain, select: true, derived: true }
+          if (rope.holes && rope.holes.length && lf)
+            m.holes = rope.holes.map((hl) => hl.map((g) => lf(g)))
           reseedRope(m, cfg)
           if (m.joints && m.joints.length >= 2) ropesRef.current.push(m)
         }
@@ -329,6 +338,8 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       if (!rope.loop) continue
       for (const f of fs) {
         const m = { loop: rope.loop.map((g) => f(g)), derived: true }
+        if (rope.holes && rope.holes.length)
+          m.holes = rope.holes.map((hl) => hl.map((g) => f(g)))
         reseedRope(m, cfg)
         if (m.joints && m.joints.length >= 2) ropesRef.current.push(m)
       }
@@ -1057,12 +1068,22 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           uniq.splice(Math.min(insertAfter + 1, uniq.length), 0, { gx: g.gx, gy: g.gy })
           rope.loop = closed ? [...uniq, { ...uniq[0] }] : uniq
         }
-        // Shift-hover target: remove an existing handle, else add on the nearest edge
+        // Shift-hover target: remove an existing handle, remove a hovered hole,
+        // else add on the nearest edge
         const shiftTargetAt = (w) => {
           for (let i = ropesRef.current.length - 1; i >= 0; i--) {
             if (ropesRef.current[i].derived) continue
             const vi = vertexIndexAt(ropesRef.current[i], w)
             if (vi >= 0) return { kind: 'remove', rope: ropesRef.current[i], index: vi }
+          }
+          // inside a hole -> offer to delete that hole
+          for (let i = ropesRef.current.length - 1; i >= 0; i--) {
+            const r = ropesRef.current[i]
+            if (r.derived || !r.holeJoints) continue
+            for (let h = r.holeJoints.length - 1; h >= 0; h--) {
+              if (r.holeJoints[h].length >= 3 && pointInPoly(w, r.holeJoints[h]))
+                return { kind: 'remove-hole', rope: r, holeIndex: h }
+            }
           }
           for (let i = ropesRef.current.length - 1; i >= 0; i--) {
             if (ropesRef.current[i].derived) continue
@@ -1075,6 +1096,17 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           // Shift: add a point on the nearest edge, or remove a hovered handle
           if (shiftRef.current) {
             const t = shiftTargetAt(w)
+            if (t && t.kind === 'remove-hole') {
+              const hole = t.rope.holes[t.holeIndex]
+              t.rope.holes = t.rope.holes.filter((_, i) => i !== t.holeIndex)
+              editRopeRef.current = t.rope
+              reseedRope(t.rope, cfgRef.current); wake()
+              histRef.current.push({ kind: 'hole', rope: t.rope, hole, inverse: true })
+              redoRef.current = []; refreshHist()
+              rebuildMirrors(cfgRef.current)
+              editShiftRef.current = null
+              return
+            }
             if (t) {
               const before = t.rope.loop.map((g) => ({ ...g }))
               const ok = t.kind === 'remove' ? removeVertexAt(t.rope, t.index) : (insertVertexAt(t.rope, t.insertAfter, t.g), true)
@@ -1129,7 +1161,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
               const t = shiftTargetAt(w)
               editShiftRef.current = t
               el.style.cursor = t
-                ? (t.kind === 'remove' ? CURSOR_DEL : CURSOR_ADD)
+                ? ((t.kind === 'remove' || t.kind === 'remove-hole') ? CURSOR_DEL : CURSOR_ADD)
                 : ((spaceRef.current || panToolRef.current) ? 'grab' : 'default')
               return
             }
@@ -1395,7 +1427,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           let host = null
           for (let i = ropesRef.current.length - 1; i >= 0; i--) {
             const r = ropesRef.current[i]
-            if (r.derived || r.select || !r.joints || r.joints.length < 3) continue
+            if (r.derived || !r.joints || r.joints.length < 3) continue
             if (!pointInPoly({ x: cx, y: cy }, r.joints)) continue
             let inside = 0
             for (const j of joints) if (pointInPoly(j, r.joints)) inside++

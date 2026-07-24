@@ -13,6 +13,11 @@ All notable changes to this project. Newest first.
 - **See-through while working**: whenever you're drawing a loop, chaining pins (Select), or in Edit
   (Sizes/Path), the filled shapes drop to 50% opacity and the pins stay visible underneath, so you can
   aim — essential for placing a hole inside an existing shape.
+- **Holes — general core (P2.1)**: holes now work on **any** shape, whether it was made in Draw or
+  Select, and **survive grid/spacing/size changes** (they re-seed deterministically from the drawn
+  loop at the new pitch, re-wrapping the pins inside them). **Symmetry mirrors holes** live (each
+  mirrored copy carries its holes). **Delete a hole**: in **Edit → Path**, **Shift+click** a hole to
+  remove just that hole (undoable/redoable) — the delete cursor shows when hovering a hole.
 - **Select mode — Randomize**: pressing Randomize (or **G**) in Select mode now scatters spread-out
   pins and connects them into ordered belt(s) that shrink-wrap. A **Points** slider sets how many pins
   each shape has, **Sinuosity** controls whether the connecting path runs nearest-first (clean) or

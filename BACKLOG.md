@@ -17,6 +17,11 @@
 - [x] **Draw holes** (P2.0 done): closing a loop inside an existing Draw shape carves a hole
   (fill-rule evenodd); the hole is a shrink-wrap physics ring. Undoable, exported (SVG/PNG), saved in
   snapshots. Shapes go 50% transparent while drawing/editing so pins stay visible for aiming.
+- [x] **Holes — general core** (P2.1 done): holes work on any shape (Draw or Select), survive
+  grid/spacing/size changes (deterministic re-seed at the new pitch), are mirrored by Symmetry, and
+  can be deleted individually with **Shift+click** in **Edit → Path** (undoable).
+- [ ] **Randomize holes** (P2.2 planned): a **Holes** checkbox in the Randomize panel to generate
+  internal voids as holes instead of filling everything.
 - [x] **Select mode** (Mode → Select): a third Mode, hybrid of Draw and Paint. Click pins in
   sequence to chain them; the band wraps them live using the same shrink-wrap physics as Draw, so it
   hugs the pins cleanly and follows the path's bends without self-intersecting artifacts (order badges
