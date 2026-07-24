@@ -107,13 +107,46 @@ export function seedJoints(points, step = 10) {
   return out;
 }
 
+/* Uniform-grid spatial hash of the pins (poles) so a joint only tests the pins
+   near it instead of all of them. Cell size = the largest pole radius, so any
+   pole that could contain a joint sits in the joint's own cell or an adjacent
+   one — a 3x3 neighbourhood query finds every relevant pole. This makes
+   collision O(joints) instead of O(joints * pins) without changing the result.
+   Built once per frame; the hot loop in stepRope never allocates. */
+export function buildPoleGrid(poles) {
+  const n = poles.length;
+  if (!n) return { empty: true, cell: 1, minX: 0, minY: 0, gcols: 0, grows: 0, cells: [] };
+  let maxR = 1, minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of poles) {
+    if (p.r > maxR) maxR = p.r;
+    if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+  }
+  const cell = maxR;
+  const gcols = Math.floor((maxX - minX) / cell) + 1;
+  const grows = Math.floor((maxY - minY) / cell) + 1;
+  const cells = new Array(gcols * grows);
+  for (let i = 0; i < n; i++) {
+    const p = poles[i];
+    const cx = Math.floor((p.x - minX) / cell);
+    const cy = Math.floor((p.y - minY) / cell);
+    const idx = cy * gcols + cx;
+    (cells[idx] || (cells[idx] = [])).push(p);
+  }
+  return { empty: false, cell, minX, minY, gcols, grows, cells };
+}
+
 /* Advance a rope's joints one frame: ring springs + pole collisions + bounds.
-   Mutates the joints in place. Returns the max joint speed (for calm detection). */
-export function stepRope(joints, poles, cfg, bounds) {
+   `poleGrid` is the spatial hash from buildPoleGrid. Mutates the joints in
+   place. Returns the max joint speed (for calm detection). */
+export function stepRope(joints, poleGrid, cfg, bounds) {
   const n = joints.length;
   if (n < 2) return 0;
   const k = STIFFNESS;
   const square = cfg.shape === 'square';
+  const g = poleGrid;
+  const { cell, minX, minY, gcols, grows, cells } = g;
+  const cr01 = (cfg.cornerRadius ?? 36) / 100;
   for (let s = 0; s < SUBSTEPS; s++) {
     // ring springs (closed loop: joint i <-> i+1)
     for (let i = 0; i < n; i++) {
@@ -125,47 +158,60 @@ export function stepRope(joints, poles, cfg, bounds) {
       a.vx += fx; a.vy += fy;
       b.vx -= fx; b.vy -= fy;
     }
-    // integrate + collide with poles + bounds
+    // integrate + collide with nearby poles (3x3 hash cells) + bounds
     for (const j of joints) {
       j.x += j.vx; j.y += j.vy;
       j.vx *= DAMPING; j.vy *= DAMPING;
-      for (const p of poles) {
-        const ox = j.x - p.x, oy = j.y - p.y;
-        if (square) {
-          // rounded-square pole: flat edges at ±r, corners rounded (matches the
-          // guide's rect). Push any joint inside it out to the rounded boundary.
-          const b = p.r, cr = p.r * ((cfg.cornerRadius ?? 36) / 100), B = p.r - cr;
-          const cx = Math.min(Math.max(ox, -B), B);
-          const cy = Math.min(Math.max(oy, -B), B);
-          const vx = ox - cx, vy = oy - cy;
-          const vlen = Math.hypot(vx, vy);
-          if (vlen > 0.001) {
-            if (vlen < cr) {           // inside the rounded band -> push out radially
-              const nx = vx / vlen, ny = vy / vlen;
-              j.x = p.x + cx + nx * cr; j.y = p.y + cy + ny * cr;
-              const vn = j.vx * nx + j.vy * ny;
-              if (vn < 0) { j.vx -= nx * vn; j.vy -= ny * vn; }
+      if (!g.empty) {
+        const cx = Math.floor((j.x - minX) / cell);
+        const cy = Math.floor((j.y - minY) / cell);
+        for (let gy = cy - 1; gy <= cy + 1; gy++) {
+          if (gy < 0 || gy >= grows) continue;
+          for (let gx = cx - 1; gx <= cx + 1; gx++) {
+            if (gx < 0 || gx >= gcols) continue;
+            const bucket = cells[gy * gcols + gx];
+            if (!bucket) continue;
+            for (let pi = 0; pi < bucket.length; pi++) {
+              const p = bucket[pi];
+              const ox = j.x - p.x, oy = j.y - p.y;
+              if (square) {
+                // rounded-square pole: flat edges at ±r, corners rounded (matches
+                // the guide's rect). Push any joint inside it out to the boundary.
+                const bb = p.r, crr = p.r * cr01, B = p.r - crr;
+                const ccx = Math.min(Math.max(ox, -B), B);
+                const ccy = Math.min(Math.max(oy, -B), B);
+                const vx = ox - ccx, vy = oy - ccy;
+                const vlen = Math.hypot(vx, vy);
+                if (vlen > 0.001) {
+                  if (vlen < crr) {           // inside the rounded band -> push out radially
+                    const nx = vx / vlen, ny = vy / vlen;
+                    j.x = p.x + ccx + nx * crr; j.y = p.y + ccy + ny * crr;
+                    const vn = j.vx * nx + j.vy * ny;
+                    if (vn < 0) { j.vx -= nx * vn; j.vy -= ny * vn; }
+                  }
+                } else {                     // deep inside the core rect -> nearest edge
+                  const dl = ox + B, dr = B - ox, dt = oy + B, dbm = B - oy;
+                  const m = Math.min(dl, dr, dt, dbm);
+                  let nx = 0, ny = 0;
+                  if (m === dl) { nx = -1; j.x = p.x - bb; }
+                  else if (m === dr) { nx = 1; j.x = p.x + bb; }
+                  else if (m === dt) { ny = -1; j.y = p.y - bb; }
+                  else { ny = 1; j.y = p.y + bb; }
+                  const vn = j.vx * nx + j.vy * ny;
+                  if (vn < 0) { j.vx -= nx * vn; j.vy -= ny * vn; }
+                }
+              } else {
+                const r = p.r;
+                const d = Math.hypot(ox, oy);
+                if (d < r && d > 0.001) {
+                  const scale = r / d;
+                  j.x = p.x + ox * scale; j.y = p.y + oy * scale;
+                  const nx = ox / d, ny = oy / d;
+                  const vn = j.vx * nx + j.vy * ny; // remove inward velocity (no bounce -> settles)
+                  if (vn < 0) { j.vx -= nx * vn; j.vy -= ny * vn; }
+                }
+              }
             }
-          } else {                     // deep inside the core rect -> nearest edge
-            const dl = ox + B, dr = B - ox, dt = oy + B, dbm = B - oy;
-            const m = Math.min(dl, dr, dt, dbm);
-            let nx = 0, ny = 0;
-            if (m === dl) { nx = -1; j.x = p.x - b; }
-            else if (m === dr) { nx = 1; j.x = p.x + b; }
-            else if (m === dt) { ny = -1; j.y = p.y - b; }
-            else { ny = 1; j.y = p.y + b; }
-            const vn = j.vx * nx + j.vy * ny;
-            if (vn < 0) { j.vx -= nx * vn; j.vy -= ny * vn; }
-          }
-        } else {
-          const r = p.r;
-          const d = Math.hypot(ox, oy);
-          if (d < r && d > 0.001) {
-            const scale = r / d;
-            j.x = p.x + ox * scale; j.y = p.y + oy * scale;
-            const nx = ox / d, ny = oy / d;
-            const vn = j.vx * nx + j.vy * ny; // remove inward velocity (no bounce -> settles)
-            if (vn < 0) { j.vx -= nx * vn; j.vy -= ny * vn; }
           }
         }
       }
