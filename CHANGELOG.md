@@ -33,8 +33,16 @@ All notable changes to this project. Newest first.
   re-wraps the new pins), or click the body to select. Re-routes are undoable/redoable and mirror
   live with Symmetry.
 
+- **Pins panel — Size variation**: a new **Pins** accordion with a **Size variation** slider that
+  randomizes each pin's diameter live (0% = all pins at the global Size; higher widens the spread),
+  without regenerating the drawing — the ropes shrink-wrap the new sizes. Driven by a dedicated seed
+  stream and capped to the pin container so pins never overflow their cell. A **Reroll sizes** button
+  picks a fresh variation pattern.
+
 ### Changed
-- **Symmetry now mirrors Paint live too**. Painted connections made by hand (drag or click-to-link)
+- **UI polish**: sliders highlight in **yellow** (accent) on hover/focus; slider numbers use **Ubuntu
+  Mono**; tighter spacing between menu controls (py-3 → py-2).
+- **Export filenames**: SVG/PNG now save as `grid-connect-<mode>-<YYYY-MM-DD-HHMM>` (mode + date).
   are mirrored on screen as you toggle Symmetry, and switching to **Off** removes the mirrors — the
   same live behavior Draw already had. Randomize keeps working (it no longer bakes symmetry; the live
   layer handles it). Exports (SVG/PNG) and history previews include the mirrored blobs.

@@ -88,6 +88,14 @@ function download(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+/* export filename: grid-connect-<mode>-<YYYY-MM-DD-HHMM> (no extension) */
+function exportName(mode) {
+  const d = new Date()
+  const p = (n) => String(n).padStart(2, '0')
+  const stamp = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`
+  return `grid-connect-${mode || 'draw'}-${stamp}`
+}
+
 function readColors() {
   const cs = getComputedStyle(document.documentElement)
   return {
@@ -124,6 +132,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
   const hostRef = useRef(null)     // p5 canvas mounts here
   const p5Ref = useRef(null)
   const sizesRef = useRef(new Map())  // per-cell diameter overrides: "r,c" -> px
+  const sizeSeedRef = useRef((Math.random() * 2 ** 32) >>> 0)  // stable seed for size-variation randomness
   const ignoredRef = useRef(new Set())  // ignored cells ("r,c"): no drawing interaction
   const cfgRef = useRef({ cols, rows, cellSize, gap, shape, tension, style, cornerRadius, blob, hideGuides, sizes: sizesRef.current, ignored: ignoredRef.current })
   const ropesRef = useRef([])       // physics ropes: { loop, joints }
@@ -258,6 +267,35 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
 
   const reseed = (cfg) => {
     for (const rope of ropesRef.current) reseedRope(rope, cfg)
+  }
+
+  // Pin size variation (live): rewrite per-cell diameters WITHOUT regenerating the
+  // shapes, then re-seed the existing ropes so they re-wrap the new sizes. v (0..100):
+  // 0 → clear (all pins at global Size); higher → each pin a random diameter widening
+  // toward the manual edit range (MIN_DIAM..cellSize*2, matching drag-to-resize).
+  // A stored seed keeps the pattern stable as you drag the slider.
+  const applySizeVar = (v) => {
+    const cfg = cfgRef.current
+    const sv = Math.max(0, Math.min(1, (v || 0) / 100))
+    sizesRef.current.clear()
+    if (sv > 0) {
+      const srng = ((a) => () => {
+        a |= 0; a = (a + 0x6D2B79F5) | 0
+        let t = Math.imul(a ^ (a >>> 15), 1 | a)
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+      })(sizeSeedRef.current)
+      const base = cfg.cellSize
+      const lo = base + (MIN_DIAM - base) * sv        // shrink toward the min
+      // Grow toward 2x, but never past the fixed container (CELL) so pins stay
+      // inside their own cell and don't overlap neighbors / fill the canvas.
+      const hi = base + (Math.min(base * 2, CELL) - base) * sv
+      for (let r = 0; r < cfg.rows; r++)
+        for (let c = 0; c < cfg.cols; c++)
+          sizesRef.current.set(r + ',' + c, Math.round(lo + srng() * (hi - lo)))
+    }
+    reseed(cfg)
+    wake()
   }
 
   // Reflectors in loop (grid-index) space: gx maps to a column, gy to a row, so a
@@ -1964,6 +2002,11 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     undo: doUndo,
     redo: doRedo,
     randomize,
+    applySizeVar,
+    rerollSizes(v) {
+      sizeSeedRef.current = (Math.random() * 2 ** 32) >>> 0
+      applySizeVar(v)
+    },
     // serializable drawing state + an SVG preview data-URI for the history dock
     snapshot() {
       const cfg = cfgRef.current
@@ -2026,7 +2069,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         edges: new Set([...paintEdgesRef.current, ...paintMirEdgesRef.current]),
       }
       const svg = buildSVG(ropesRef.current, paint, cfgRef.current, colRef.current.ink)
-      download(new Blob([svg], { type: 'image/svg+xml' }), 'grid.svg')
+      download(new Blob([svg], { type: 'image/svg+xml' }), exportName(modeRef.current) + '.svg')
     },
     exportPNG() {
       const cfg = cfgRef.current
@@ -2036,7 +2079,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       for (const rope of ropesRef.current) drawRope(pg, rope.joints, cfg.style, colRef.current, 1, rope.holeJoints)
       drawPaint(pg, paintNodesRef.current, paintEdgesRef.current, cfg, colRef.current, 1)
       drawPaint(pg, paintMirNodesRef.current, paintMirEdgesRef.current, cfg, colRef.current, 1)
-      p5Ref.current.saveCanvas(pg, 'grid', 'png')
+      p5Ref.current.saveCanvas(pg, exportName(modeRef.current), 'png')
       pg.remove()
     },
   }), [])
@@ -2050,7 +2093,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       />
       <div ref={holderRef} style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', overflow: 'hidden' }}>
         <div ref={hostRef} style={{ position: 'absolute', inset: 0 }} />
-      <div className="zoombox" style={{ left: leftInset + 16, right: 'auto' }}>
+      <div className="zoombox" style={{ left: leftInset + 10, right: 'auto' }}>
         <button
           className="tool-btn icon-btn" onClick={doUndo} disabled={!canUndo}
           title="Undo" aria-label="Undo"

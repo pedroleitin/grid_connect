@@ -36,8 +36,10 @@ export default function App() {
   const [rndDiagonals, setRndDiagonals] = useState(true) // paint: allow diagonal links (8-way) vs H/V only
   const [rndPoints, setRndPoints] = useState(5)        // select: how many pins per generated shape
   const [rndHoles, setRndHoles] = useState(false)      // draw: keep enclosed voids as holes
+  const [rndSizeVar, setRndSizeVar] = useState(0)      // pin size variation (0..100)
   const [rndSeed, setRndSeed] = useState(() => (Math.random() * 2 ** 32) >>> 0)
   const [rndOpen, setRndOpen] = useState(false)  // randomize accordion open state
+  const [pinsOpen, setPinsOpen] = useState(false)  // pins accordion open state
   const rndRef = useRef({ fill, single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, sym: rndSym, diagonals: rndDiagonals, points: rndPoints, holes: rndHoles, seed: rndSeed })
   useEffect(() => { rndRef.current = { fill, single: rndSingle, channels: rndChannels, sinuosity: rndSinuosity, sym: rndSym, diagonals: rndDiagonals, points: rndPoints, holes: rndHoles, seed: rndSeed } }, [fill, rndSingle, rndChannels, rndSinuosity, rndSym, rndDiagonals, rndPoints, rndHoles, rndSeed])
   // true once a random layout exists, so slider tweaks refine it live (same seed)
@@ -103,6 +105,15 @@ export default function App() {
   useEffect(() => {
     if (rndActiveRef.current) handleRandomize()
   }, [fill, rndSingle, rndChannels, rndSinuosity, rndSym, rndDiagonals, rndPoints, rndHoles]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Size variation is independent of the shape: it live-resizes the pins and re-wraps
+  // the current drawing without regenerating it (works in any mode, with or without Randomize).
+  useEffect(() => {
+    canvasApi.current?.applySizeVar(rndSizeVar)
+  }, [rndSizeVar]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reroll sizes: pick a fresh size-variation pattern (new seed) at the current amount.
+  const handleRerollSizes = () => canvasApi.current?.rerollSizes(rndSizeVar)
 
   // clearing the canvas stops live slider refinement until the next Randomize
   const handleClear = () => { rndActiveRef.current = false; canvasApi.current?.clear() }
@@ -173,9 +184,12 @@ export default function App() {
         rndDiagonals={rndDiagonals} setRndDiagonals={setRndDiagonals}
         rndPoints={rndPoints} setRndPoints={setRndPoints}
         rndHoles={rndHoles} setRndHoles={setRndHoles}
+        rndSizeVar={rndSizeVar} setRndSizeVar={setRndSizeVar}
         rndSeed={rndSeed}
         rndOpen={rndOpen} setRndOpen={setRndOpen}
         onReroll={handleReroll}
+        pinsOpen={pinsOpen} setPinsOpen={setPinsOpen}
+        onRerollSizes={handleRerollSizes}
         onClear={handleClear}
         onResetCircles={() => canvasApi.current?.resetCircles()}
       />
@@ -217,7 +231,7 @@ export default function App() {
           className={'history-pop fixed z-[55] bg-panel rounded-[15px] p-2' + (dockClosing ? ' history-pop--closing' : '')}
           onAnimationEnd={(e) => { if (e.animationName === 'history-pop-out') setDockClosing(false) }}
           style={{
-            left: `calc(50% + ${leftInset / 2}px)`, bottom: 74,
+            left: `calc(50% + ${leftInset / 2}px)`, bottom: 68,
             transform: 'translateX(-50%)', maxWidth: `calc(100vw - ${leftInset + 32}px)`,
             color: 'var(--c-text)',
           }}
@@ -286,7 +300,7 @@ export default function App() {
       {/* footer bar: history toggle + export, aligned with the undo/redo & zoom boxes */}
       <div
         className="zoombox"
-        style={{ position: 'fixed', bottom: 16, left: `calc(50% + ${leftInset / 2}px)`, right: 'auto', transform: 'translateX(-50%)', zIndex: 50, color: 'var(--c-text)' }}
+        style={{ position: 'fixed', bottom: 10, left: `calc(50% + ${leftInset / 2}px)`, right: 'auto', transform: 'translateX(-50%)', zIndex: 50, color: 'var(--c-text)' }}
       >
         <button
           className={'tool-btn icon-btn' + (dockOpen ? ' active' : '')}

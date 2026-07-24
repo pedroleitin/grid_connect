@@ -51,7 +51,7 @@ function Slider({ label, min, max, value, suffix = '', onChange }) {
 
   return (
     <Row>
-      <div className="px-5 py-3">
+      <div className="px-5 py-2">
         <div
           ref={rootRef}
           className="rng"
@@ -73,7 +73,7 @@ function Slider({ label, min, max, value, suffix = '', onChange }) {
 function Checkbox({ label, checked, onChange, kbd }) {
   return (
     <Row>
-      <div className="px-5 flex items-center justify-between py-3">
+      <div className="px-5 flex items-center justify-between py-2">
         <Label kbd={kbd}>{label}</Label>
         <button role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className="toggle-switch">
           <span
@@ -93,7 +93,7 @@ function Checkbox({ label, checked, onChange, kbd }) {
 function Segmented({ label, options, value, onChange, kbd, width }) {
   return (
     <Row>
-      <div className="px-5 py-3 flex items-center justify-between gap-3">
+      <div className="px-5 py-2 flex items-center justify-between gap-3">
         <Label kbd={kbd}>{label}</Label>
         <div className="seg" style={width ? { width } : undefined}>
           {options.map((o) => (
@@ -142,7 +142,9 @@ export default function Sidebar({
   rndDiagonals, setRndDiagonals,
   rndPoints, setRndPoints,
   rndHoles, setRndHoles,
+  rndSizeVar, setRndSizeVar,
   rndOpen, setRndOpen, onReroll,
+  pinsOpen, setPinsOpen, onRerollSizes,
   onClear, onResetCircles,
 }) {
   return (
@@ -242,6 +244,13 @@ export default function Sidebar({
           </div>
         </Accordion>
 
+        <Accordion title="Pins" open={pinsOpen} onToggle={() => setPinsOpen((v) => !v)}>
+          <Slider label="Size variation" min={0} max={100} value={rndSizeVar} suffix="%" onChange={setRndSizeVar} />
+          <div className="px-5 pt-1 pb-3">
+            <button className="tool-btn w-full" onClick={onRerollSizes}>Reroll sizes</button>
+          </div>
+        </Accordion>
+
         <p className="px-5 py-3 mt-auto text-[11px] leading-relaxed" style={{ color: 'var(--c-text)', opacity: 0.5 }}>
           Draw a loop anywhere on the canvas around the circles you want to wrap — an elastic
           rope snaps tightly around them. Scroll to pan, Ctrl/Cmd+scroll (or pinch) to zoom,
@@ -250,7 +259,7 @@ export default function Sidebar({
       </div>
 
       {/* action buttons pinned to the bottom */}
-      <div className="p-4 divider border-t border-[#d7d2c7]/25 flex gap-2">
+      <div className="p-[10px] divider border-t border-[#d7d2c7]/25 flex gap-2">
         <button className="tool-btn flex-1" onClick={onResetCircles}>Reset<Kbd k="r" /></button>
         <button className="tool-btn flex-1" onClick={onClear}>Clear<Kbd k="c" /></button>
       </div>
