@@ -5,6 +5,14 @@ All notable changes to this project. Newest first.
 ## Unreleased
 
 ### Added
+- **Draw holes**: in Draw mode, closing a loop **inside** an existing shape carves a **hole** in it
+  (fill-rule evenodd) instead of making a new shape — the hole is a physics ring that shrink-wraps
+  the pins inside it, just like the outer contour. Works with Freehand and Points, is undoable, and is
+  included in SVG/PNG exports and history snapshots. (P2.0 spike proven end-to-end: render → PNG →
+  physics → SVG → path-edit move → undo.)
+- **See-through while working**: whenever you're drawing a loop, chaining pins (Select), or in Edit
+  (Sizes/Path), the filled shapes drop to 50% opacity and the pins stay visible underneath, so you can
+  aim — essential for placing a hole inside an existing shape.
 - **Select mode — Randomize**: pressing Randomize (or **G**) in Select mode now scatters spread-out
   pins and connects them into ordered belt(s) that shrink-wrap. A **Points** slider sets how many pins
   each shape has, **Sinuosity** controls whether the connecting path runs nearest-first (clean) or

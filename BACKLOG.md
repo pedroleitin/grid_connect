@@ -14,6 +14,9 @@
   center axes; each reflection is its own shape and mirroring happens after carving so halves match.
   Works in Draw and Paint, refines live.
 - [ ] **Erase** tool: remove drawn ropes (or parts of them) directly on the canvas.
+- [x] **Draw holes** (P2.0 done): closing a loop inside an existing Draw shape carves a hole
+  (fill-rule evenodd); the hole is a shrink-wrap physics ring. Undoable, exported (SVG/PNG), saved in
+  snapshots. Shapes go 50% transparent while drawing/editing so pins stay visible for aiming.
 - [x] **Select mode** (Mode → Select): a third Mode, hybrid of Draw and Paint. Click pins in
   sequence to chain them; the band wraps them live using the same shrink-wrap physics as Draw, so it
   hugs the pins cleanly and follows the path's bends without self-intersecting artifacts (order badges

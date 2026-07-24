@@ -477,9 +477,12 @@ export function buildSVG(ropes, paint, cfg, ink) {
   for (const rope of ropes) {
     const J = rope.joints;
     if (!J || J.length < 3) continue;
-    const d = splinePathD(J, true);
+    // compound path: outer ring + hole rings (fill-rule evenodd carves the holes)
+    const holeRings = (rope.holeJoints || []).filter((h) => h && h.length >= 3);
+    let d = splinePathD(J, true);
+    for (const h of holeRings) d += ' ' + splinePathD(h, true);
     body += cfg.style === 'fill'
-      ? `<path d="${d}" fill="${ink}" stroke="${ink}" stroke-width="4" stroke-linejoin="round"/>`
+      ? `<path d="${d}" fill="${ink}" fill-rule="evenodd" stroke="${ink}" stroke-width="4" stroke-linejoin="round"/>`
       : `<path d="${d}" fill="none" stroke="${ink}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>`;
   }
   if (paint && paint.nodes && paint.nodes.size) {

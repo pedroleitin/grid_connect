@@ -7,11 +7,37 @@ import {
 } from '../lib/geometry'
 
 /* render a rope: closed Catmull-Rom spline through its physics joints */
-function drawRope(g, joints, style, COL, alpha = 1) {
+function drawRope(g, joints, style, COL, alpha = 1, holes = null) {
   const n = joints.length
   if (n === 0) return
   const ink = g.color(COL.ink); ink.setAlpha(255 * alpha)
   if (n < 3) { g.fill(ink); g.noStroke(); g.circle(joints[0].x, joints[0].y, 8); return }
+  const holeRings = (holes || []).filter((h) => h && h.length >= 3)
+  if (holeRings.length) {
+    // compound path (outer + holes) via the raw 2D context so we can fill
+    // with the even-odd rule (carves the holes) — mirrors the SVG export.
+    const ctx = g.drawingContext
+    const addRing = (pts) => {
+      const { start, segs } = splineSegments(pts, true)
+      ctx.moveTo(start.x, start.y)
+      for (const s of segs) ctx.bezierCurveTo(s.c1x, s.c1y, s.c2x, s.c2y, s.x, s.y)
+      ctx.closePath()
+    }
+    ctx.save()
+    ctx.beginPath()
+    addRing(joints)
+    for (const h of holeRings) addRing(h)
+    const css = ink.toString()
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round'
+    if (style === 'fill') {
+      ctx.fillStyle = css; ctx.fill('evenodd')
+      ctx.strokeStyle = css; ctx.lineWidth = 4; ctx.stroke()
+    } else {
+      ctx.strokeStyle = css; ctx.lineWidth = 5; ctx.stroke()
+    }
+    ctx.restore()
+    return
+  }
   if (style === 'fill') { g.fill(ink); g.stroke(ink); g.strokeWeight(4); g.strokeJoin(g.ROUND) }
   else { g.noFill(); g.stroke(ink); g.strokeWeight(5); g.strokeJoin(g.ROUND); g.strokeCap(g.ROUND) }
   const { start, segs } = splineSegments(joints, true)
@@ -170,6 +196,13 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     } else if (act.kind === 'edit') {
       // restore the rope's loop (undo -> before, redo -> after) and re-seed it
       act.rope.loop = (add ? act.after : act.before).map((g) => ({ ...g }))
+      const holes = add ? act.holesAfter : act.holesBefore
+      if (holes !== undefined) act.rope.holes = holes ? holes.map((hl) => hl.map((g) => ({ ...g }))) : null
+      reseedRope(act.rope, cfgRef.current)
+    } else if (act.kind === 'hole') {
+      // add a drawn hole to a rope (redo) / remove it (undo), then re-seed
+      if (add) act.rope.holes = [...(act.rope.holes || []), act.hole]
+      else act.rope.holes = (act.rope.holes || []).filter((h) => h !== act.hole)
       reseedRope(act.rope, cfgRef.current)
     } else if (act.kind === 'edit-chain') {
       // restore a Select rope's pin chain (undo -> before, redo -> after)
@@ -208,6 +241,13 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
     const O = PAD + CELL / 2, pitch = CELL + cfg.gap
     const pts = rope.loop.map((g) => ({ x: O + g.gx * pitch, y: O + g.gy * pitch }))
     rope.joints = seedJoints(pts, 10)
+    // hole rings (P2.0 spike): seed a contracting ring per hole loop
+    if (rope.holes && rope.holes.length) {
+      rope.holeJoints = rope.holes.map((hl) =>
+        seedJoints(hl.map((g) => ({ x: O + g.gx * pitch, y: O + g.gy * pitch })), 10))
+    } else {
+      rope.holeJoints = null
+    }
   }
 
   const reseed = (cfg) => {
@@ -1077,7 +1117,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             // Select ropes are reshaped by dragging their pin nodes, not by moving
             // the whole body — clicking the body just selects it (shows handles).
             if (rp.select) return
-            editDragRef.current = { kind: 'move', rope: rp, before: rp.loop.map((g) => ({ ...g })), lastW: { x: w.x, y: w.y } }
+            editDragRef.current = { kind: 'move', rope: rp, before: rp.loop.map((g) => ({ ...g })), holesBefore: rp.holes ? rp.holes.map((hl) => hl.map((g) => ({ ...g }))) : null, lastW: { x: w.x, y: w.y } }
             return
           }
           editRopeRef.current = null   // clicked empty space -> deselect
@@ -1117,6 +1157,13 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             for (const j of d.rope.joints) { j.x += dx; j.y += dy; j.vx = 0; j.vy = 0 }
             const cfg = cfgRef.current, pitch = CELL + cfg.gap
             for (const g of d.rope.loop) { g.gx += dx / pitch; g.gy += dy / pitch }
+            // move hole rings with the body (P2.0 spike)
+            if (d.rope.holeJoints)
+              for (const hj of d.rope.holeJoints)
+                for (const j of hj) { j.x += dx; j.y += dy; j.vx = 0; j.vy = 0 }
+            if (d.rope.holes)
+              for (const hl of d.rope.holes)
+                for (const g of hl) { g.gx += dx / pitch; g.gy += dy / pitch }
           } else {
             const g = worldToGrid(w)
             d.rope.loop[d.index] = { gx: g.gx, gy: g.gy }
@@ -1149,7 +1196,8 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           const changed = d.before.length !== after.length ||
             d.before.some((g, i) => g.gx !== after[i].gx || g.gy !== after[i].gy)
           if (changed) {
-            histRef.current.push({ kind: 'edit', rope: d.rope, before: d.before, after })
+            const holesAfter = d.rope.holes ? d.rope.holes.map((hl) => hl.map((g) => ({ ...g }))) : null
+            histRef.current.push({ kind: 'edit', rope: d.rope, before: d.before, after, holesBefore: d.holesBefore, holesAfter })
             redoRef.current = []
             refreshHist()
           }
@@ -1336,6 +1384,40 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           redoRef.current = []; refreshHist()
           rebuildMirrors(cfgRef.current)
         }
+        // Commit a freshly drawn loop: if it lies fully inside an existing draw
+        // rope, it becomes a HOLE in that rope (fill-rule evenodd); otherwise it
+        // becomes a new rope. `loop` is in grid coords, `joints` the seeded ring.
+        const commitDrawnLoop = (loop, joints) => {
+          const cfg = cfgRef.current
+          let cx = 0, cy = 0
+          for (const j of joints) { cx += j.x; cy += j.y }
+          cx /= joints.length; cy /= joints.length
+          let host = null
+          for (let i = ropesRef.current.length - 1; i >= 0; i--) {
+            const r = ropesRef.current[i]
+            if (r.derived || r.select || !r.joints || r.joints.length < 3) continue
+            if (!pointInPoly({ x: cx, y: cy }, r.joints)) continue
+            let inside = 0
+            for (const j of joints) if (pointInPoly(j, r.joints)) inside++
+            if (inside / joints.length < 0.9) continue          // must be mostly inside
+            let inHole = false
+            if (r.holeJoints) for (const hj of r.holeJoints)
+              if (pointInPoly({ x: cx, y: cy }, hj)) { inHole = true; break }
+            if (inHole) continue                                 // don't nest inside a hole
+            host = r; break
+          }
+          if (host) {
+            host.holes = [...(host.holes || []), loop]
+            reseedRope(host, cfg); wake()
+            histRef.current.push({ kind: 'hole', rope: host, hole: loop })
+          } else {
+            const rope = { loop, joints }
+            ropesRef.current.push(rope); wake()
+            histRef.current.push({ kind: 'rope', rope })
+          }
+          redoRef.current = []; refreshHist()
+          rebuildMirrors(cfg)
+        }
         const finishDraw = () => {
           if (!curRef.current) return
           const pts = curRef.current
@@ -1345,12 +1427,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
             if (joints.length >= 2) {
               const cfg = cfgRef.current, O = PAD + CELL / 2, pitch = CELL + cfg.gap
               const loop = pts.map((q) => ({ gx: (q.x - O) / pitch, gy: (q.y - O) / pitch }))
-              const rope = { loop, joints }
-              ropesRef.current.push(rope); wake()
-              histRef.current.push({ kind: 'rope', rope })
-              redoRef.current = []
-              refreshHist()
-              rebuildMirrors(cfgRef.current)
+              commitDrawnLoop(loop, joints)
             }
           }
         }
@@ -1372,12 +1449,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           if (joints.length < 2) return
           const cfg = cfgRef.current, O = PAD + CELL / 2, pitch = CELL + cfg.gap
           const loop = pts.map((q) => ({ gx: (q.x - O) / pitch, gy: (q.y - O) / pitch }))
-          const rope = { loop, joints }
-          ropesRef.current.push(rope); wake()
-          histRef.current.push({ kind: 'rope', rope })
-          redoRef.current = []
-          refreshHist()
-          rebuildMirrors(cfgRef.current)
+          commitDrawnLoop(loop, joints)
         }
         // add a vertex on click; close when clicking near the first point
         const pointsDown = (w) => {
@@ -1520,6 +1592,9 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
           let vmax = 0
           for (const rope of ropesRef.current) {
             vmax = Math.max(vmax, stepRope(rope.joints, poleGrid, cfg, bounds))
+            if (rope.holeJoints)
+              for (const hj of rope.holeJoints)
+                vmax = Math.max(vmax, stepRope(hj, poleGrid, cfg, bounds))
           }
           if (selectPreviewRef.current && selectPreviewRef.current.joints)
             vmax = Math.max(vmax, stepRope(selectPreviewRef.current.joints, poleGrid, cfg, bounds))
@@ -1543,10 +1618,13 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         p.translate(v.tx, v.ty)
         p.scale(v.scale)
 
-        // guides (pins) — fade in/out with "hide guides"; forced visible in edit mode
+        // guides (pins) — fade in/out with "hide guides"; forced visible while
+        // editing or actively drawing a loop so the pins stay visible to aim at
+        // (e.g. to place a hole inside an existing shape)
         const edit = isEdit()
         const editDraw = modeRef.current === 'edit'
-        const gTarget = (cfg.hideGuides && !edit && !editDraw) ? 0 : 1
+        const drawingActive = !!(curRef.current || polyRef.current || selectChainRef.current)
+        const gTarget = (cfg.hideGuides && !edit && !editDraw && !drawingActive) ? 0 : 1
         guideRef.current += (gTarget - guideRef.current) * 0.18
         if (guideRef.current < 0.003) guideRef.current = 0
         if (guideRef.current > 0.997) guideRef.current = 1
@@ -1620,17 +1698,18 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
         if (!edit) drawGuides()
 
         // ropes — crossfade opacity when the style changes (fill <-> outline);
-        // dim all ropes to 50% while in Path edit mode so the pins stay visible
+        // dim all ropes to 50% while editing (Sizes/Path) or actively drawing a
+        // loop, so the pins stay visible underneath (helps aim + place holes)
         const sa = styleAnimRef.current
         if (sa.t < 1) sa.t = Math.min(1, sa.t + 0.12)
         const se = easeInOut(sa.t)
-        const ea = editDraw ? 0.5 : 1
+        const ea = (editDraw || edit || drawingActive) ? 0.5 : 1
         for (const rope of ropesRef.current) {
           if (sa.t < 1) {
-            drawRope(p, rope.joints, sa.from, COL, (1 - se) * ea)
-            drawRope(p, rope.joints, cfg.style, COL, se * ea)
+            drawRope(p, rope.joints, sa.from, COL, (1 - se) * ea, rope.holeJoints)
+            drawRope(p, rope.joints, cfg.style, COL, se * ea, rope.holeJoints)
           } else {
-            drawRope(p, rope.joints, cfg.style, COL, ea)
+            drawRope(p, rope.joints, cfg.style, COL, ea, rope.holeJoints)
           }
         }
 
@@ -1821,7 +1900,12 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       const drawing = {
         ropes: ropesRef.current.filter((r) => !r.derived).map((r) => r.select
           ? { select: true, chain: (r.chain || []).map((k) => ({ r: k.r, c: k.c })) }
-          : { loop: (r.loop || []).map((g) => ({ gx: g.gx, gy: g.gy })) }),
+          : {
+              loop: (r.loop || []).map((g) => ({ gx: g.gx, gy: g.gy })),
+              ...(r.holes && r.holes.length
+                ? { holes: r.holes.map((h) => h.map((g) => ({ gx: g.gx, gy: g.gy }))) }
+                : {}),
+            }),
         paint: { nodes: [...paintNodesRef.current], edges: [...paintEdgesRef.current] },
         sizes: [...sizesRef.current.entries()],
         ignored: [...ignoredRef.current],
@@ -1846,7 +1930,12 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       ropesRef.current = (drawing.ropes || []).map((r) => {
         const rope = r.select
           ? { select: true, chain: (r.chain || []).map((k) => ({ r: k.r, c: k.c })) }
-          : { loop: (r.loop || []).map((g) => ({ gx: g.gx, gy: g.gy })) }
+          : {
+              loop: (r.loop || []).map((g) => ({ gx: g.gx, gy: g.gy })),
+              ...(r.holes && r.holes.length
+                ? { holes: r.holes.map((h) => h.map((g) => ({ gx: g.gx, gy: g.gy }))) }
+                : {}),
+            }
         reseedRope(rope, cfgRef.current)
         return rope
       })
@@ -1874,7 +1963,7 @@ const GridCanvas = forwardRef(function GridCanvas({ cols, rows, cellSize, gap, s
       const { w, h } = canvasSize(cfg.cols, cfg.rows, cfg.gap)
       const pg = p5Ref.current.createGraphics(w, h)
       pg.pixelDensity(2); pg.clear()
-      for (const rope of ropesRef.current) drawRope(pg, rope.joints, cfg.style, colRef.current)
+      for (const rope of ropesRef.current) drawRope(pg, rope.joints, cfg.style, colRef.current, 1, rope.holeJoints)
       drawPaint(pg, paintNodesRef.current, paintEdgesRef.current, cfg, colRef.current, 1)
       drawPaint(pg, paintMirNodesRef.current, paintMirEdgesRef.current, cfg, colRef.current, 1)
       p5Ref.current.saveCanvas(pg, 'grid', 'png')
